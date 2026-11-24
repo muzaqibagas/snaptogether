@@ -2,6 +2,7 @@ import { computed, reactive, ref } from 'vue';
 import { PRESET_FRAMES } from '../constants/frames';
 import type {
   BoothMode,
+  CameraFitMode,
   CapturedPose,
   CountdownDuration,
   FilterId,
@@ -28,6 +29,9 @@ export function useBoothSession() {
   const reviewingPose = ref<CapturedPose | null>(null);
   const isCapturing = ref(false);
   const isMuted = ref(false);
+  const fitMode = ref<CameraFitMode>(
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'contain' : 'cover',
+  );
   const generatedAssets = ref<GeneratedAssets | null>(null);
   const isGeneratingAssets = ref(false);
   const showTimeoutBanner = ref(false);
@@ -66,6 +70,10 @@ export function useBoothSession() {
 
   function setCountdownDuration(duration: CountdownDuration) {
     state.countdownDuration = duration;
+  }
+
+  function setFitMode(mode: CameraFitMode) {
+    fitMode.value = mode;
   }
 
   function goToStep(step: 1 | 2 | 3) {
@@ -158,6 +166,7 @@ export function useBoothSession() {
     reviewingPose,
     isCapturing,
     isMuted,
+    fitMode,
     generatedAssets,
     isGeneratingAssets,
     showTimeoutBanner,
@@ -166,6 +175,7 @@ export function useBoothSession() {
     addCustomFrame,
     setFilter,
     setCountdownDuration,
+    setFitMode,
     goToStep,
     setReviewingPose,
     commitReviewedPose,

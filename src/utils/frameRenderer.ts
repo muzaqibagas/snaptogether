@@ -1,5 +1,11 @@
-import type { BoothMode, FilterId, FramePreset, FrameSlotRect } from '../types/booth';
-import { applyFilterGradingToCanvas, drawCoverSource, type DrawableSource } from './canvasFilters';
+import type { BoothMode, CameraFitMode, FilterId, FramePreset, FrameSlotRect } from '../types/booth';
+import {
+  applyFilterGradingToCanvas,
+  drawBlurredCoverBackdrop,
+  drawContainSource,
+  drawCoverSource,
+  type DrawableSource,
+} from './canvasFilters';
 
 export interface SlotRenderMedia {
   local: DrawableSource;
@@ -497,6 +503,7 @@ function drawSlotMedia(
   accentColor: string,
   textColor: string,
   applyFilterToSource: boolean,
+  fitMode: CameraFitMode = 'cover',
 ): void {
   ctx.save();
   drawRoundedRectPath(ctx, slot.x, slot.y, slot.width, slot.height, slot.radius);
@@ -535,24 +542,32 @@ function drawSlotMedia(
   }
 
   // Render into temporary slot canvas if filter grading is needed cleanly on the slot
+  const drawSourceInto = (
+    targetCtx: CanvasRenderingContext2D,
+    src: DrawableSource,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+  ) => {
+    if (fitMode === 'contain') {
+      drawBlurredCoverBackdrop(targetCtx, src, dx, dy, dw, dh, false);
+      drawContainSource(targetCtx, src, dx, dy, dw, dh, false);
+    } else {
+      drawCoverSource(targetCtx, src, dx, dy, dw, dh, false);
+    }
+  };
+
   const renderSlotInto = (targetCtx: CanvasRenderingContext2D, ox: number, oy: number) => {
     if (mode === 'ldr' && media.partner) {
       const halfW = Math.floor(slot.width / 2);
-      drawCoverSource(targetCtx, media.local, ox, oy, halfW, slot.height, false);
-      drawCoverSource(
-        targetCtx,
-        media.partner,
-        ox + halfW,
-        oy,
-        slot.width - halfW,
-        slot.height,
-        false,
-      );
+      drawSourceInto(targetCtx, media.local, ox, oy, halfW, slot.height);
+      drawSourceInto(targetCtx, media.partner, ox + halfW, oy, slot.width - halfW, slot.height);
       // Crisp hairline center split
       targetCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
       targetCtx.fillRect(ox + halfW - 1.5, oy, 3, slot.height);
     } else {
-      drawCoverSource(targetCtx, media.local, ox, oy, slot.width, slot.height, false);
+      drawSourceInto(targetCtx, media.local, ox, oy, slot.width, slot.height);
     }
   };
 
@@ -581,6 +596,7 @@ export interface RenderFrameOptions {
   /** Downscale factor for fast previews (e.g. 0.45) or 1 for full HD PNG export */
   scale?: number;
   applyFilterToSource?: boolean;
+  fitMode?: CameraFitMode;
 }
 
 /**
@@ -597,6 +613,7 @@ export async function renderFrameComposite(
     filterId,
     scale = 1,
     applyFilterToSource = true,
+    fitMode = 'cover',
   } = options;
 
   const outW = Math.max(1, Math.round(frame.canvasWidth * scale));
@@ -630,6 +647,7 @@ export async function renderFrameComposite(
         frame.accentColor,
         frame.textColor,
         applyFilterToSource,
+        fitMode,
       );
     }
 
@@ -653,6 +671,7 @@ export async function renderFrameComposite(
         frame.accentColor,
         frame.textColor,
         applyFilterToSource,
+        fitMode,
       );
     }
 

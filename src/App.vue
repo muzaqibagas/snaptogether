@@ -154,7 +154,7 @@ onMounted(() => {
       <div class="absolute -right-14 bottom-24 h-64 w-64 rounded-full bg-[#ffeed7]/60 blur-2xl" />
     </div>
 
-    <div class="relative z-10 flex flex-1 flex-col">
+    <div class="relative z-10 flex min-w-0 w-full flex-1 flex-col">
       <TopHeader
         :current-step="booth.state.currentStep"
         :mode="booth.state.mode"
@@ -190,7 +190,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <main class="flex-1">
+      <main class="min-w-0 w-full flex-1">
         <!-- Step 1: Frame & Mode Selection -->
         <Step1FrameSelection
           v-if="booth.state.currentStep === 1"
@@ -218,6 +218,7 @@ onMounted(() => {
           :selected-frame="booth.selectedFrame.value"
           :active-filter-id="booth.state.activeFilterId"
           :countdown-duration="booth.state.countdownDuration"
+          :fit-mode="booth.fitMode.value"
           :active-pose-index="booth.activePoseIndex.value"
           :captured-poses="booth.state.capturedPoses"
           :reviewing-pose="booth.reviewingPose.value"
@@ -227,6 +228,7 @@ onMounted(() => {
           :on-sync-message="ldrPeer.onSyncMessage"
           @update:filter-id="booth.setFilter"
           @update:countdown="booth.setCountdownDuration"
+          @update:fit-mode="booth.setFitMode"
           @first-shutter-pressed="handleFirstShutter"
           @pose-captured="handlePoseCaptured"
           @retake-pose="booth.retakeActivePose"
@@ -240,6 +242,7 @@ onMounted(() => {
           :mode="booth.state.mode"
           :selected-frame="booth.selectedFrame.value"
           :active-filter-id="booth.state.activeFilterId"
+          :fit-mode="booth.fitMode.value"
           :captured-poses="booth.state.capturedPoses"
           :formatted-time-remaining="sessionTimer.formattedTime.value"
           @assets-ready="handleAssetsReady"

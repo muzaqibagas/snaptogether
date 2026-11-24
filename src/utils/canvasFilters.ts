@@ -70,6 +70,66 @@ export function drawCoverSource(
   ctx.restore();
 }
 
+/**
+ * Draws the entire uncropped source image centered inside target rectangle (contain math).
+ */
+export function drawContainSource(
+  ctx: CanvasRenderingContext2D,
+  source: DrawableSource,
+  destX: number,
+  destY: number,
+  destW: number,
+  destH: number,
+  mirror = false,
+): void {
+  const { width: srcW, height: srcH } = getSourceDimensions(source);
+  if (srcW <= 0 || srcH <= 0 || destW <= 0 || destH <= 0) return;
+
+  const scale = Math.min(destW / srcW, destH / srcH);
+  const drawW = srcW * scale;
+  const drawH = srcH * scale;
+  const dx = destX + (destW - drawW) / 2;
+  const dy = destY + (destH - drawH) / 2;
+
+  ctx.save();
+  if (mirror) {
+    ctx.translate(dx + drawW, dy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(source, 0, 0, srcW, srcH, 0, 0, drawW, drawH);
+  } else {
+    ctx.drawImage(source, 0, 0, srcW, srcH, dx, dy, drawW, drawH);
+  }
+  ctx.restore();
+}
+
+/**
+ * Renders a soft iOS-safe blurred ambient cover backdrop behind contain-fitted media.
+ */
+export function drawBlurredCoverBackdrop(
+  ctx: CanvasRenderingContext2D,
+  source: DrawableSource,
+  destX: number,
+  destY: number,
+  destW: number,
+  destH: number,
+  mirror = false,
+): void {
+  if (destW <= 0 || destH <= 0) return;
+  const tiny = document.createElement('canvas');
+  tiny.width = 24;
+  tiny.height = 24;
+  const tCtx = tiny.getContext('2d');
+  if (tCtx) {
+    drawCoverSource(tCtx, source, 0, 0, 24, 24, mirror);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(tiny, destX, destY, destW, destH);
+    ctx.fillStyle = 'rgba(34, 18, 25, 0.28)';
+    ctx.fillRect(destX, destY, destW, destH);
+    ctx.restore();
+  }
+}
+
 function clampByte(v: number): number {
   return v < 0 ? 0 : v > 255 ? 255 : v;
 }

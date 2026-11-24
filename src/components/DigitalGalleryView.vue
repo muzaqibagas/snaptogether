@@ -215,14 +215,14 @@ onUnmounted(() => {
             <img
               :src="assets.mainFramedPng.url"
               alt="Foto Utama Berbingkai"
-              class="max-h-[440px] w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)]"
+              class="h-auto max-h-[440px] max-w-full w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)]"
             />
           </div>
         </div>
 
         <!-- Videos Grid -->
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="sticker-card space-y-3 rounded-[24px] p-4">
+        <div class="grid min-w-0 gap-4 sm:grid-cols-2">
+          <div class="sticker-card min-w-0 space-y-3 rounded-[24px] p-4">
             <div class="flex items-center gap-2">
               <Film class="h-4 w-4 text-[#7b4ce2]" />
               <h3 class="font-display text-sm font-bold text-[#3b212a]">2. Video Live Photo Bergerak</h3>
@@ -266,7 +266,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="sticker-card space-y-3 rounded-[24px] p-4">
+          <div class="sticker-card min-w-0 space-y-3 rounded-[24px] p-4">
             <div class="flex items-center gap-2">
               <Film class="h-4 w-4 text-[#f05483]" />
               <h3 class="font-display text-sm font-bold text-[#3b212a]">3. Video Live Story 9:16</h3>

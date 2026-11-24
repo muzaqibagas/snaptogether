@@ -19,6 +19,7 @@ import QRCode from 'qrcode';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type {
   BoothMode,
+  CameraFitMode,
   CapturedPose,
   FilterId,
   FramePreset,
@@ -45,6 +46,7 @@ const props = defineProps<{
   mode: BoothMode;
   selectedFrame: FramePreset;
   activeFilterId: FilterId;
+  fitMode?: CameraFitMode;
   capturedPoses: CapturedPose[];
   formattedTimeRemaining: string;
 }>();
@@ -112,6 +114,7 @@ function startLivePreviewAnimation() {
       filterId: props.activeFilterId,
       scale,
       applyFilterToSource: false,
+      fitMode: props.fitMode ?? 'cover',
     });
   };
 
@@ -156,6 +159,7 @@ async function buildSessionOutputs() {
       filterId: props.activeFilterId,
       scale: 1,
       applyFilterToSource: true,
+      fitMode: props.fitMode ?? 'cover',
     });
 
     const mainBlob = await new Promise<Blob | null>((resolve) =>
@@ -173,7 +177,12 @@ async function buildSessionOutputs() {
     // 2. Render Clean Unframed Raw Poses
     const rawList: RawPoseAsset[] = [];
     for (const pose of props.capturedPoses) {
-      const rawBlob = await exportCleanPosePng(pose, props.mode, props.activeFilterId);
+      const rawBlob = await exportCleanPosePng(
+        pose,
+        props.mode,
+        props.activeFilterId,
+        props.fitMode ?? 'cover',
+      );
       if (rawBlob) {
         rawList.push({
           poseIndex: pose.poseIndex,
@@ -199,6 +208,7 @@ async function buildSessionOutputs() {
       frame: props.selectedFrame,
       mode: props.mode,
       filterId: props.activeFilterId,
+      fitMode: props.fitMode ?? 'cover',
     });
     if (liveRes.blob) {
       localAssets.value.livePhotoVideo = {
@@ -215,6 +225,7 @@ async function buildSessionOutputs() {
       frame: props.selectedFrame,
       mode: props.mode,
       filterId: props.activeFilterId,
+      fitMode: props.fitMode ?? 'cover',
     });
     if (storyRes.blob) {
       localAssets.value.storyVideo = {
@@ -322,9 +333,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="safe-x safe-bottom mx-auto grid max-w-7xl gap-5 py-4 sm:py-6 lg:grid-cols-12 lg:gap-6">
+  <section class="safe-x safe-bottom mx-auto grid w-full max-w-7xl gap-5 py-4 sm:py-6 lg:grid-cols-12 lg:gap-6">
     <!-- Left Preview Tabs (Framed Strip vs Live Photo Video) -->
-    <div class="space-y-4 lg:col-span-6 xl:col-span-5">
+    <div class="min-w-0 w-full space-y-4 lg:col-span-6 xl:col-span-5">
       <div class="sticker-card relative rounded-[24px] p-4 pt-6 sm:p-5 sm:pt-7">
         <div
           class="washi-tape pointer-events-none absolute -top-3 left-1/2 h-6 w-28 -translate-x-1/2 -rotate-1 rounded-xs"
@@ -383,13 +394,13 @@ onUnmounted(() => {
             v-else-if="activeTab === 'photo' && localAssets.mainFramedPng.url"
             :src="localAssets.mainFramedPng.url"
             alt="Hasil Foto Strip Berbingkai"
-            class="max-h-[420px] w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)] sm:max-h-[480px]"
+            class="h-auto max-h-[420px] max-w-full w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)] sm:max-h-[480px]"
           />
 
           <canvas
             v-else-if="activeTab === 'video'"
             ref="livePreviewCanvasRef"
-            class="max-h-[420px] w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)] sm:max-h-[480px]"
+            class="h-auto max-h-[420px] max-w-full w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)] sm:max-h-[480px]"
           />
         </div>
 
@@ -400,7 +411,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Right Downloads + QR Code Gallery Column -->
-    <div class="space-y-5 lg:col-span-6 xl:col-span-7">
+    <div class="min-w-0 w-full space-y-5 lg:col-span-6 xl:col-span-7">
       <!-- QR Barcode & Digital Gallery Card -->
       <div class="sticker-card rounded-[24px] p-4 sm:p-5">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">

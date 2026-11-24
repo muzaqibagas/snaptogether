@@ -31,9 +31,9 @@ const steps = [
   >
     <div class="safe-x mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 sm:gap-3">
       <!-- Cute Brand Badge -->
-      <div class="flex min-w-0 items-center gap-2.5">
+      <div class="flex min-w-0 flex-1 items-center gap-2 md:flex-initial">
         <div
-          class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border-2 border-[#f6b8cc] bg-[#ffe7ef] shadow-[0_3px_0_#f7cad8] sm:h-11 sm:w-11"
+          class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border-2 border-[#f6b8cc] bg-[#ffe7ef] shadow-[0_3px_0_#f7cad8] sm:h-11 sm:w-11"
         >
           <!-- Handcrafted Blushing Camera SVG -->
           <svg viewBox="0 0 36 36" class="h-7 w-7" aria-hidden="true">

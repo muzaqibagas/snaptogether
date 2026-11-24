@@ -4,17 +4,22 @@ import {
   Check,
   FlipHorizontal2,
   Heart,
+  Maximize2,
+  Minimize2,
   RefreshCw,
   Sparkles,
   SwitchCamera,
   Users,
   Video,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useCamera } from '../composables/useCamera';
 import { FILTERS, getFilterById } from '../constants/filters';
 import type {
   BoothMode,
+  CameraFitMode,
   CapturedPose,
   CountdownDuration,
   FilterId,
@@ -27,6 +32,9 @@ import {
   captureMotionFrameBlob,
   captureRawStillCanvas,
   createFilteredCanvas,
+  drawBlurredCoverBackdrop,
+  drawContainSource,
+  drawCoverSource,
 } from '../utils/canvasFilters';
 import { renderFrameComposite, type SlotRenderMedia } from '../utils/frameRenderer';
 import { playCountdownBeep, playShutterSound } from '../utils/soundEffects';
@@ -36,6 +44,7 @@ const props = defineProps<{
   selectedFrame: FramePreset;
   activeFilterId: FilterId;
   countdownDuration: CountdownDuration;
+  fitMode: CameraFitMode;
   activePoseIndex: number;
   capturedPoses: CapturedPose[];
   reviewingPose: CapturedPose | null;
@@ -48,6 +57,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:filterId', filterId: FilterId): void;
   (e: 'update:countdown', duration: CountdownDuration): void;
+  (e: 'update:fitMode', mode: CameraFitMode): void;
   (e: 'firstShutterPressed'): void;
   (e: 'poseCaptured', pose: CapturedPose): void;
   (e: 'retakePose'): void;
@@ -61,6 +71,7 @@ const partnerVideoRef = ref<HTMLVideoElement | null>(null);
 const reviewCanvasRef = ref<HTMLCanvasElement | null>(null);
 const stripPreviewCanvasRef = ref<HTMLCanvasElement | null>(null);
 
+const localVideoAspect = ref(4 / 3);
 const countdownRemaining = ref<number | null>(null);
 const isRecordingMotion = ref(false);
 const showFlash = ref(false);
@@ -76,6 +87,32 @@ const activeFilterDef = computed(() => getFilterById(props.activeFilterId));
 const isFinalPose = computed(
   () => props.capturedPoses.length + (props.reviewingPose ? 1 : 0) >= props.selectedFrame.poseCount,
 );
+const isPortraitCamera = computed(() => localVideoAspect.value < 0.95);
+const viewfinderContainerClass = computed(() => {
+  if (props.mode === 'ldr') {
+    return 'grid aspect-[4/3] min-h-[220px] max-h-[46dvh] grid-cols-2 sm:min-h-[380px] sm:max-h-[500px]';
+  }
+  return isPortraitCamera.value
+    ? 'mx-auto aspect-[3/4] min-h-[240px] max-h-[52dvh] sm:max-h-[520px]'
+    : 'aspect-[4/3] min-h-[210px] max-h-[48dvh] sm:max-h-[500px]';
+});
+
+function handleLocalMetadata() {
+  const lv = localVideoRef.value;
+  if (!lv || !lv.videoWidth || !lv.videoHeight) return;
+  localVideoAspect.value = lv.videoWidth / lv.videoHeight;
+}
+
+function toggleFitMode() {
+  emit('update:fitMode', props.fitMode === 'contain' ? 'cover' : 'contain');
+}
+
+function stepHardwareZoom(delta: number) {
+  const caps = camera.zoomCapabilities.value;
+  if (!caps) return;
+  const step = Math.max(caps.step, 0.2);
+  camera.setZoom(camera.zoomLevel.value + delta * step);
+}
 
 function attachVideoStreams() {
   if (localVideoRef.value && camera.stream.value) {
@@ -106,14 +143,23 @@ async function drawReviewPreview() {
 
   if (props.mode === 'ldr' && pose.stillPartner) {
     const filteredPartner = createFilteredCanvas(pose.stillPartner, props.activeFilterId);
-    canvas.width = filteredLocal.width * 2;
-    canvas.height = filteredLocal.height;
+    const halfW = filteredLocal.width;
+    const h = filteredLocal.height;
+    canvas.width = halfW * 2;
+    canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.drawImage(filteredLocal, 0, 0);
-      ctx.drawImage(filteredPartner, filteredLocal.width, 0);
+      if (props.fitMode === 'contain') {
+        drawBlurredCoverBackdrop(ctx, filteredLocal, 0, 0, halfW, h, false);
+        drawContainSource(ctx, filteredLocal, 0, 0, halfW, h, false);
+        drawBlurredCoverBackdrop(ctx, filteredPartner, halfW, 0, halfW, h, false);
+        drawContainSource(ctx, filteredPartner, halfW, 0, halfW, h, false);
+      } else {
+        drawCoverSource(ctx, filteredLocal, 0, 0, halfW, h, false);
+        drawCoverSource(ctx, filteredPartner, halfW, 0, halfW, h, false);
+      }
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.fillRect(filteredLocal.width - 2, 0, 4, canvas.height);
+      ctx.fillRect(halfW - 2, 0, 4, canvas.height);
     }
   } else {
     canvas.width = filteredLocal.width;
@@ -152,11 +198,12 @@ async function drawStripProgressPreview() {
     filterId: props.activeFilterId,
     scale,
     applyFilterToSource: true,
+    fitMode: props.fitMode,
   });
 }
 
 watch(
-  () => [props.reviewingPose, props.activeFilterId],
+  () => [props.reviewingPose, props.activeFilterId, props.fitMode],
   () => {
     drawReviewPreview();
     drawStripProgressPreview();
@@ -395,12 +442,12 @@ defineExpose({
 </script>
 
 <template>
-  <section class="safe-x safe-bottom mx-auto grid max-w-7xl gap-5 py-4 sm:py-5 lg:grid-cols-12 lg:gap-6">
+  <section class="safe-x safe-bottom mx-auto grid w-full max-w-7xl gap-4 py-3 sm:gap-5 sm:py-5 lg:grid-cols-12 lg:gap-6">
     <!-- Camera & Controls Column -->
-    <div class="space-y-4 lg:col-span-8 xl:col-span-9">
+    <div class="min-w-0 w-full space-y-3 sm:space-y-4 lg:col-span-8 xl:col-span-9">
       <!-- Top Booth Controls Bar -->
       <div
-        class="sticker-card flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3"
+        class="sticker-card flex w-full min-w-0 flex-wrap items-center justify-between gap-2 rounded-2xl px-3 py-2 sm:px-4 sm:py-3"
       >
         <div class="flex flex-wrap items-center gap-2">
           <span
@@ -453,6 +500,57 @@ defineExpose({
             <span>Mirror</span>
           </button>
 
+          <!-- Framing Fit/Crop Toggle (fixes zoomed-in look on phone cameras) -->
+          <button
+            type="button"
+            class="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition"
+            :class="
+              fitMode === 'contain'
+                ? 'border-[#4f9ee8] bg-[#eef7ff] text-[#1f62a1]'
+                : 'border-[#f3d4de] bg-white text-[#6a4552]'
+            "
+            :title="
+              fitMode === 'contain'
+                ? 'Tampilan Utuh: tampilkan seluruh bidang kamera tanpa crop/zoom'
+                : 'Tampilan Penuh: penuhi kotak bingkai'
+            "
+            @click="toggleFitMode"
+          >
+            <Minimize2 v-if="fitMode === 'contain'" class="h-3.5 w-3.5" />
+            <Maximize2 v-else class="h-3.5 w-3.5" />
+            <span>{{ fitMode === 'contain' ? 'Utuh' : 'Penuh' }}</span>
+          </button>
+
+          <!-- Hardware Zoom Controls (shown when device camera supports zoom/ultrawide) -->
+          <div
+            v-if="camera.zoomCapabilities.value"
+            class="flex items-center gap-0.5 rounded-xl border-2 border-[#f3d4de] bg-white px-1 py-0.5"
+          >
+            <button
+              type="button"
+              :disabled="camera.zoomLevel.value <= camera.zoomCapabilities.value.min"
+              class="flex h-7 w-7 items-center justify-center rounded-lg text-[#6a4552] hover:bg-[#fff0f5] disabled:opacity-40"
+              title="Perkecil zoom kamera"
+              aria-label="Perkecil zoom kamera"
+              @click="stepHardwareZoom(-1)"
+            >
+              <ZoomOut class="h-3.5 w-3.5" />
+            </button>
+            <span class="px-1 font-mono-timer text-[11px] font-bold text-[#3b212a]">
+              {{ camera.zoomLevel.value.toFixed(1) }}x
+            </span>
+            <button
+              type="button"
+              :disabled="camera.zoomLevel.value >= camera.zoomCapabilities.value.max"
+              class="flex h-7 w-7 items-center justify-center rounded-lg text-[#6a4552] hover:bg-[#fff0f5] disabled:opacity-40"
+              title="Perbesar zoom kamera"
+              aria-label="Perbesar zoom kamera"
+              @click="stepHardwareZoom(1)"
+            >
+              <ZoomIn class="h-3.5 w-3.5" />
+            </button>
+          </div>
+
           <!-- Switch Camera -->
           <button
             type="button"
@@ -467,7 +565,7 @@ defineExpose({
       </div>
 
       <!-- Camera Polaroid Frame Card -->
-      <div class="sticker-card overflow-hidden rounded-[26px] p-2.5 sm:p-4">
+      <div class="sticker-card w-full min-w-0 overflow-hidden rounded-[26px] p-2.5 sm:p-4">
         <!-- Camera Error Banner -->
         <div
           v-if="camera.errorMessage.value"
@@ -494,15 +592,11 @@ defineExpose({
         <!-- Live Camera Viewfinder (kept mounted with v-show so iOS/Android camera never freezes on review) -->
         <div
           v-show="!camera.errorMessage.value && !reviewingPose"
-          class="relative w-full overflow-hidden rounded-2xl border-2 border-[#f3d1dc] bg-[#2a1820]"
-          :class="
-            mode === 'ldr'
-              ? 'grid min-h-[260px] grid-cols-2 aspect-[4/3] sm:min-h-[400px]'
-              : 'aspect-[3/4] max-h-[54dvh] sm:aspect-[4/3] sm:max-h-[500px]'
-          "
+          class="relative w-full min-w-0 overflow-hidden rounded-2xl border-2 border-[#f3d1dc] bg-[#2a1820]"
+          :class="viewfinderContainerClass"
         >
           <!-- Local Camera -->
-          <div class="relative h-full w-full overflow-hidden bg-[#2b1921]">
+          <div class="relative h-full w-full min-w-0 overflow-hidden bg-[#2b1921]">
             <video
               ref="localVideoRef"
               autoplay
@@ -510,11 +604,13 @@ defineExpose({
               muted
               webkit-playsinline="true"
               disablePictureInPicture
-              class="h-full w-full object-cover transition-transform duration-200"
+              class="block h-full w-full max-w-full transition-transform duration-200"
+              :class="fitMode === 'contain' ? 'object-contain' : 'object-cover'"
               :style="{
                 filter: activeFilterDef.cssFilter,
                 transform: camera.isMirrored.value ? 'scaleX(-1)' : 'none',
               }"
+              @loadedmetadata="handleLocalMetadata"
             />
             <div
               v-if="activeFilterDef.overlayBg"
@@ -523,7 +619,7 @@ defineExpose({
             />
             <span
               v-if="mode === 'ldr'"
-              class="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 rounded-full border border-white/60 bg-[#fff5f8]/90 px-2.5 py-1 text-[11px] font-extrabold text-[#c92a5d] shadow-xs backdrop-blur-xs"
+              class="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full border border-white/60 bg-[#fff5f8]/90 px-2 py-0.5 text-[10px] font-extrabold text-[#c92a5d] shadow-xs backdrop-blur-xs sm:bottom-2.5 sm:left-2.5 sm:px-2.5 sm:py-1 sm:text-[11px]"
             >
               Kamu ♡
             </span>
@@ -532,7 +628,7 @@ defineExpose({
           <!-- Partner Camera (LDR Mode Only) -->
           <div
             v-if="mode === 'ldr'"
-            class="relative h-full w-full overflow-hidden border-l-2 border-white/75 bg-[#222838]"
+            class="relative h-full w-full min-w-0 overflow-hidden border-l-2 border-white/75 bg-[#222838]"
           >
             <video
               v-show="remoteStream"
@@ -542,7 +638,8 @@ defineExpose({
               muted
               webkit-playsinline="true"
               disablePictureInPicture
-              class="h-full w-full object-cover"
+              class="block h-full w-full max-w-full"
+              :class="fitMode === 'contain' ? 'object-contain' : 'object-cover'"
               :style="{ filter: activeFilterDef.cssFilter }"
             />
             <div
@@ -552,17 +649,17 @@ defineExpose({
             />
             <div
               v-if="!remoteStream"
-              class="flex h-full flex-col items-center justify-center gap-2 bg-[#f5f9ff] p-3 text-center"
+              class="flex h-full flex-col items-center justify-center gap-2 bg-[#f5f9ff] p-2.5 text-center sm:p-3"
             >
-              <div class="flex h-11 w-11 items-center justify-center rounded-full bg-[#dceeff] text-[#357ec7]">
-                <Users class="h-5 w-5" />
+              <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[#dceeff] text-[#357ec7] sm:h-11 sm:w-11">
+                <Users class="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <p class="text-xs font-bold text-[#35506d]">
+              <p class="text-[11px] font-bold leading-snug text-[#35506d] sm:text-xs">
                 {{ ldrState === 'connected' ? 'Menunggu kamera pasangan...' : 'Si dia belum terhubung' }}
               </p>
             </div>
             <span
-              class="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 rounded-full border border-white/60 bg-[#eef7ff]/90 px-2.5 py-1 text-[11px] font-extrabold text-[#1e609d] shadow-xs backdrop-blur-xs"
+              class="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full border border-white/60 bg-[#eef7ff]/90 px-2 py-0.5 text-[10px] font-extrabold text-[#1e609d] shadow-xs backdrop-blur-xs sm:bottom-2.5 sm:right-2.5 sm:px-2.5 sm:py-1 sm:text-[11px]"
             >
               Pasangan ♡
             </span>
@@ -611,7 +708,7 @@ defineExpose({
           <div class="flex items-center justify-center overflow-hidden rounded-2xl border-2 border-[#f4d4df] bg-white p-2.5 shadow-inner">
             <canvas
               ref="reviewCanvasRef"
-              class="max-h-[44dvh] max-w-full rounded-xl object-contain shadow-md sm:max-h-[420px]"
+              class="h-auto max-h-[44dvh] max-w-full rounded-xl object-contain shadow-md sm:max-h-[420px]"
             />
           </div>
 
@@ -665,7 +762,7 @@ defineExpose({
           </div>
 
           <!-- 9 Real-Time Filter Chips (horizontal swipe-friendly on mobile) -->
-          <div class="touch-scroll-x flex gap-2 overflow-x-auto pb-1.5">
+          <div class="touch-scroll-x flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-1.5">
             <button
               v-for="f in FILTERS"
               :key="f.id"
@@ -690,7 +787,7 @@ defineExpose({
     </div>
 
     <!-- Right Progress Strip Column -->
-    <div class="lg:col-span-4 xl:col-span-3">
+    <div class="min-w-0 w-full lg:col-span-4 xl:col-span-3">
       <div class="sticker-card relative rounded-[24px] p-4 pt-6 lg:sticky lg:top-24">
         <div
           class="washi-tape-butter pointer-events-none absolute -top-3 left-1/2 h-6 w-24 -translate-x-1/2 rotate-2 rounded-xs"
@@ -730,7 +827,7 @@ defineExpose({
         <div class="flex justify-center rounded-2xl border-2 border-[#f4d7e1] bg-[#fff5f7] p-3">
           <canvas
             ref="stripPreviewCanvasRef"
-            class="max-h-[280px] w-auto rounded-lg shadow-[0_8px_20px_rgba(120,45,70,0.16)] lg:max-h-[370px]"
+            class="h-auto max-h-[280px] max-w-full w-auto rounded-lg shadow-[0_8px_20px_rgba(120,45,70,0.16)] lg:max-h-[370px]"
           />
         </div>
       </div>

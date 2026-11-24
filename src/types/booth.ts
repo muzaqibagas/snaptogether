@@ -1,5 +1,7 @@
 export type BoothMode = 'solo' | 'ldr';
 
+export type CameraFitMode = 'contain' | 'cover';
+
 export type FrameLayoutType = 'strip-3' | 'strip-4' | 'grid-2x2';
 
 export type CountdownDuration = 3 | 5 | 10;

@@ -1,5 +1,11 @@
-import type { BoothMode, CapturedPose, FilterId, FramePreset } from '../types/booth';
-import { applyFilterGradingToCanvas, drawCoverSource, type DrawableSource } from './canvasFilters';
+import type { BoothMode, CameraFitMode, CapturedPose, FilterId, FramePreset } from '../types/booth';
+import {
+  applyFilterGradingToCanvas,
+  drawBlurredCoverBackdrop,
+  drawContainSource,
+  drawCoverSource,
+  type DrawableSource,
+} from './canvasFilters';
 import { renderFrameComposite, type SlotRenderMedia } from './frameRenderer';
 
 export interface DecodedPoseMotion {
@@ -230,8 +236,9 @@ export async function exportFramedLivePhotoVideo(options: {
   frame: FramePreset;
   mode: BoothMode;
   filterId: FilterId;
+  fitMode?: CameraFitMode;
 }): Promise<{ blob: Blob | null; mimeType: string; extension: 'mp4' | 'webm' }> {
-  const { prepared, frame, mode, filterId } = options;
+  const { prepared, frame, mode, filterId, fitMode = 'cover' } = options;
 
   // Target max height 1200px so MediaRecorder encodes fast & smoothly across devices
   const scale = Math.min(1, 1200 / frame.canvasHeight);
@@ -254,6 +261,7 @@ export async function exportFramedLivePhotoVideo(options: {
         filterId,
         scale,
         applyFilterToSource: false, // already pre-graded in prepared bitmaps
+        fitMode,
       });
     },
     totalTicks,
@@ -269,8 +277,9 @@ export async function exportStoryLivePhotoVideo(options: {
   frame: FramePreset;
   mode: BoothMode;
   filterId: FilterId;
+  fitMode?: CameraFitMode;
 }): Promise<{ blob: Blob | null; mimeType: string; extension: 'mp4' | 'webm' }> {
-  const { prepared, frame, mode, filterId } = options;
+  const { prepared, frame, mode, filterId, fitMode = 'cover' } = options;
 
   const storyW = 720;
   const storyH = 1280;
@@ -295,6 +304,7 @@ export async function exportStoryLivePhotoVideo(options: {
         filterId,
         scale: frameScale,
         applyFilterToSource: false,
+        fitMode,
       });
 
       const ctx = storyCanvas.getContext('2d');
@@ -350,6 +360,7 @@ export async function exportCleanPosePng(
   pose: CapturedPose,
   mode: BoothMode,
   filterId: FilterId,
+  fitMode: CameraFitMode = 'cover',
 ): Promise<Blob | null> {
   const w = mode === 'ldr' && pose.stillPartner ? 1280 : pose.stillLocal.width || 1080;
   const h = mode === 'ldr' && pose.stillPartner ? 854 : pose.stillLocal.height || 810;
@@ -362,8 +373,15 @@ export async function exportCleanPosePng(
 
   if (mode === 'ldr' && pose.stillPartner) {
     const half = Math.floor(w / 2);
-    drawCoverSource(ctx, pose.stillLocal, 0, 0, half, h, false);
-    drawCoverSource(ctx, pose.stillPartner, half, 0, w - half, h, false);
+    if (fitMode === 'contain') {
+      drawBlurredCoverBackdrop(ctx, pose.stillLocal, 0, 0, half, h, false);
+      drawContainSource(ctx, pose.stillLocal, 0, 0, half, h, false);
+      drawBlurredCoverBackdrop(ctx, pose.stillPartner, half, 0, w - half, h, false);
+      drawContainSource(ctx, pose.stillPartner, half, 0, w - half, h, false);
+    } else {
+      drawCoverSource(ctx, pose.stillLocal, 0, 0, half, h, false);
+      drawCoverSource(ctx, pose.stillPartner, half, 0, w - half, h, false);
+    }
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.fillRect(half - 1, 0, 2, h);
   } else {

@@ -227,9 +227,9 @@ function scrollToPreview() {
     </div>
 
     <!-- Main 2-Column Workspace -->
-    <div class="grid gap-5 lg:grid-cols-12 lg:gap-6">
+    <div class="grid min-w-0 gap-5 lg:grid-cols-12 lg:gap-6">
       <!-- Left Configuration Column -->
-      <div class="space-y-5 lg:col-span-7 xl:col-span-8">
+      <div class="min-w-0 w-full space-y-5 lg:col-span-7 xl:col-span-8">
         <!-- 1. Mode Booth Selection -->
         <div class="sticker-card rounded-[24px] p-4 sm:p-5">
           <div class="mb-3.5 flex items-start justify-between gap-2">
@@ -328,7 +328,7 @@ function scrollToPreview() {
             class="mt-4 rounded-2xl border-2 border-[#bdddf9] bg-[#f4faff] p-3.5 sm:p-4"
           >
             <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div class="flex gap-1 rounded-xl border border-[#cce4fa] bg-white p-1">
+              <div class="grid w-full grid-cols-2 gap-1 rounded-xl border border-[#cce4fa] bg-white p-1 sm:flex sm:w-auto">
                 <button
                   type="button"
                   class="min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-bold transition"
@@ -445,7 +445,7 @@ function scrollToPreview() {
                 spellcheck="false"
                 enterkeyhint="go"
                 placeholder="Masukkan kode, misal: SNAP-4829"
-                class="min-h-[44px] flex-1 rounded-xl border-2 border-[#c7e1fa] bg-white px-3.5 py-2 font-mono-timer text-base uppercase text-[#243b53] placeholder:text-[#8ba5bf] focus:border-[#4f9ee8] focus:outline-none sm:text-sm"
+                class="min-h-[44px] w-full min-w-0 flex-1 rounded-xl border-2 border-[#c7e1fa] bg-white px-3.5 py-2 font-mono-timer text-base uppercase text-[#243b53] placeholder:text-[#8ba5bf] focus:border-[#4f9ee8] focus:outline-none sm:text-sm"
                 @keyup.enter="$emit('joinLdrRoom', joinCodeInput)"
               />
               <button
@@ -623,7 +623,7 @@ function scrollToPreview() {
       </div>
 
       <!-- Right Live Canvas Preview Column (Washi-Taped Polaroid Card) -->
-      <div ref="previewSectionRef" class="lg:col-span-5 xl:col-span-4">
+      <div ref="previewSectionRef" class="min-w-0 w-full lg:col-span-5 xl:col-span-4">
         <div class="sticker-card relative rounded-[24px] p-4 pt-6 sm:p-5 sm:pt-7 lg:sticky lg:top-24">
           <!-- Decorative Washi Tape Strip -->
           <div
@@ -650,7 +650,7 @@ function scrollToPreview() {
           >
             <canvas
               ref="previewCanvasRef"
-              class="max-h-[380px] w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)] sm:max-h-[430px]"
+              class="h-auto max-h-[380px] max-w-full w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)] sm:max-h-[430px]"
             />
           </div>
 
