@@ -3,6 +3,7 @@ import {
   Camera,
   Check,
   FlipHorizontal2,
+  Heart,
   RefreshCw,
   Sparkles,
   SwitchCamera,
@@ -79,9 +80,11 @@ const isFinalPose = computed(
 function attachVideoStreams() {
   if (localVideoRef.value && camera.stream.value) {
     localVideoRef.value.srcObject = camera.stream.value;
+    localVideoRef.value.play?.().catch(() => {});
   }
   if (partnerVideoRef.value && props.remoteStream) {
     partnerVideoRef.value.srcObject = props.remoteStream;
+    partnerVideoRef.value.play?.().catch(() => {});
   }
 }
 
@@ -109,7 +112,7 @@ async function drawReviewPreview() {
     if (ctx) {
       ctx.drawImage(filteredLocal, 0, 0);
       ctx.drawImage(filteredPartner, filteredLocal.width, 0);
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
       ctx.fillRect(filteredLocal.width - 2, 0, 4, canvas.height);
     }
   } else {
@@ -392,37 +395,42 @@ defineExpose({
 </script>
 
 <template>
-  <section class="mx-auto grid max-w-7xl gap-6 px-4 py-5 sm:px-6 lg:grid-cols-12">
+  <section class="safe-x safe-bottom mx-auto grid max-w-7xl gap-5 py-4 sm:py-5 lg:grid-cols-12 lg:gap-6">
     <!-- Camera & Controls Column -->
     <div class="space-y-4 lg:col-span-8 xl:col-span-9">
       <!-- Top Booth Controls Bar -->
-      <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3">
-        <div class="flex items-center gap-2.5">
-          <span class="rounded-lg bg-pink-500/20 px-2.5 py-1 text-xs font-bold text-pink-300">
+      <div
+        class="sticker-card flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3"
+      >
+        <div class="flex flex-wrap items-center gap-2">
+          <span
+            class="inline-flex items-center gap-1.5 rounded-full border border-[#f5bfd1] bg-[#fff0f5] px-3 py-1 text-xs font-extrabold text-[#c92a5d]"
+          >
+            <Heart class="h-3.5 w-3.5 fill-[#f05483] text-[#f05483]" />
             Pose {{ activePoseIndex + 1 }} / {{ selectedFrame.poseCount }}
           </span>
           <span
             v-if="isRecordingMotion"
-            class="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 px-2.5 py-1 text-[11px] font-semibold text-rose-300"
+            class="inline-flex items-center gap-1.5 rounded-full border border-[#f6b1c4] bg-[#ffe7ef] px-2.5 py-1 text-[11px] font-extrabold text-[#be1e4d]"
           >
-            <span class="h-2 w-2 animate-ping rounded-full bg-rose-500" />
-            REC LIVE PHOTO
+            <span class="h-2 w-2 animate-ping rounded-full bg-[#f05483]" />
+            REKAM LIVE PHOTO
           </span>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <!-- Countdown Selector -->
-          <div class="flex items-center rounded-xl border border-slate-800 bg-slate-950 p-1">
+          <div class="flex items-center rounded-xl border-2 border-[#f3d4de] bg-[#fff5f7] p-0.5">
             <button
               v-for="sec in ([3, 5, 10] as CountdownDuration[])"
               :key="sec"
               type="button"
-              :disabled="isBusyCapturing"
-              class="rounded-lg px-2.5 py-1 text-xs font-semibold transition"
+              :disabled="isBusyCapturing || !!reviewingPose"
+              class="min-h-[34px] rounded-lg px-2.5 py-1 text-xs font-extrabold transition"
               :class="
                 countdownDuration === sec
-                  ? 'bg-pink-500 text-white'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-[#f05483] text-white shadow-xs'
+                  : 'text-[#7e5866] hover:text-[#3b212a]'
               "
               @click="handleCountdownSelect(sec)"
             >
@@ -433,11 +441,11 @@ defineExpose({
           <!-- Mirror Toggle -->
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition"
+            class="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition"
             :class="
               camera.isMirrored.value
-                ? 'border-pink-500/50 bg-pink-500/15 text-pink-200'
-                : 'border-slate-700 bg-slate-950 text-slate-300'
+                ? 'border-[#f05483] bg-[#fff0f5] text-[#c92a5d]'
+                : 'border-[#f3d4de] bg-white text-[#6a4552]'
             "
             @click="camera.toggleMirror()"
           >
@@ -448,52 +456,60 @@ defineExpose({
           <!-- Switch Camera -->
           <button
             type="button"
-            :disabled="isBusyCapturing"
-            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
+            :disabled="isBusyCapturing || !!reviewingPose"
+            class="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 border-[#f3d4de] bg-white px-3 py-1.5 text-xs font-bold text-[#5e3b47] transition hover:border-[#ebafc2] hover:bg-[#fff5f8] disabled:opacity-50"
             @click="camera.toggleFacingMode()"
           >
-            <SwitchCamera class="h-3.5 w-3.5" />
+            <SwitchCamera class="h-3.5 w-3.5 text-[#e44b7b]" />
             <span>{{ camera.facingMode.value === 'user' ? 'Depan' : 'Belakang' }}</span>
           </button>
         </div>
       </div>
 
-      <!-- Camera Viewport OR Pose Review -->
-      <div class="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl">
+      <!-- Camera Polaroid Frame Card -->
+      <div class="sticker-card overflow-hidden rounded-[26px] p-2.5 sm:p-4">
         <!-- Camera Error Banner -->
         <div
           v-if="camera.errorMessage.value"
-          class="flex min-h-[360px] flex-col items-center justify-center gap-4 p-8 text-center"
+          class="flex min-h-[300px] flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-[#f2c2d2] bg-[#fff5f7] p-6 text-center sm:min-h-[380px] sm:p-8"
         >
-          <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-400">
+          <div
+            class="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#f5c0d0] bg-white text-[#e44b7b] shadow-xs"
+          >
             <Video class="h-7 w-7" />
           </div>
           <div class="max-w-md space-y-1.5">
-            <h3 class="font-display text-base font-bold text-white">Kamera Belum Siap</h3>
-            <p class="text-xs leading-relaxed text-slate-400">{{ camera.errorMessage.value }}</p>
+            <h3 class="font-display text-lg font-bold text-[#3b212a]">Izin Kamera Diperlukan ♡</h3>
+            <p class="text-xs leading-relaxed text-[#785360] sm:text-sm">{{ camera.errorMessage.value }}</p>
           </div>
           <button
             type="button"
-            class="rounded-xl bg-pink-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-pink-400"
+            class="btn-strawberry min-h-[44px] rounded-xl px-5 py-2.5 text-xs font-extrabold"
             @click="camera.startCamera()"
           >
-            Coba Akses Kamera Lagi
+            Izinkan &amp; Nyalakan Kamera
           </button>
         </div>
 
-        <!-- Live Camera Viewfinder -->
+        <!-- Live Camera Viewfinder (kept mounted with v-show so iOS/Android camera never freezes on review) -->
         <div
-          v-show="!camera.errorMessage.value"
-          class="relative w-full overflow-hidden bg-black"
-          :class="mode === 'ldr' ? 'grid min-h-[340px] grid-cols-2 sm:min-h-[430px]' : 'aspect-[4/3] max-h-[520px]'"
+          v-show="!camera.errorMessage.value && !reviewingPose"
+          class="relative w-full overflow-hidden rounded-2xl border-2 border-[#f3d1dc] bg-[#2a1820]"
+          :class="
+            mode === 'ldr'
+              ? 'grid min-h-[260px] grid-cols-2 aspect-[4/3] sm:min-h-[400px]'
+              : 'aspect-[3/4] max-h-[54dvh] sm:aspect-[4/3] sm:max-h-[500px]'
+          "
         >
           <!-- Local Camera -->
-          <div class="relative h-full w-full overflow-hidden bg-slate-900">
+          <div class="relative h-full w-full overflow-hidden bg-[#2b1921]">
             <video
               ref="localVideoRef"
               autoplay
               playsinline
               muted
+              webkit-playsinline="true"
+              disablePictureInPicture
               class="h-full w-full object-cover transition-transform duration-200"
               :style="{
                 filter: activeFilterDef.cssFilter,
@@ -507,20 +523,25 @@ defineExpose({
             />
             <span
               v-if="mode === 'ldr'"
-              class="absolute bottom-3 left-3 rounded-lg bg-slate-950/75 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur"
+              class="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 rounded-full border border-white/60 bg-[#fff5f8]/90 px-2.5 py-1 text-[11px] font-extrabold text-[#c92a5d] shadow-xs backdrop-blur-xs"
             >
-              Kamera Kamu
+              Kamu ♡
             </span>
           </div>
 
           <!-- Partner Camera (LDR Mode Only) -->
-          <div v-if="mode === 'ldr'" class="relative h-full w-full overflow-hidden border-l border-white/20 bg-slate-900">
+          <div
+            v-if="mode === 'ldr'"
+            class="relative h-full w-full overflow-hidden border-l-2 border-white/75 bg-[#222838]"
+          >
             <video
               v-show="remoteStream"
               ref="partnerVideoRef"
               autoplay
               playsinline
               muted
+              webkit-playsinline="true"
+              disablePictureInPicture
               class="h-full w-full object-cover"
               :style="{ filter: activeFilterDef.cssFilter }"
             />
@@ -531,27 +552,29 @@ defineExpose({
             />
             <div
               v-if="!remoteStream"
-              class="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-slate-400"
+              class="flex h-full flex-col items-center justify-center gap-2 bg-[#f5f9ff] p-3 text-center"
             >
-              <Users class="h-8 w-8 text-cyan-400/70" />
-              <p class="text-xs font-medium text-slate-300">
-                {{ ldrState === 'connected' ? 'Menunggu video pasangan...' : 'Pasangan belum terhubung' }}
+              <div class="flex h-11 w-11 items-center justify-center rounded-full bg-[#dceeff] text-[#357ec7]">
+                <Users class="h-5 w-5" />
+              </div>
+              <p class="text-xs font-bold text-[#35506d]">
+                {{ ldrState === 'connected' ? 'Menunggu kamera pasangan...' : 'Si dia belum terhubung' }}
               </p>
             </div>
             <span
-              class="absolute bottom-3 right-3 rounded-lg bg-slate-950/75 px-2.5 py-1 text-[11px] font-semibold text-cyan-300 backdrop-blur"
+              class="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 rounded-full border border-white/60 bg-[#eef7ff]/90 px-2.5 py-1 text-[11px] font-extrabold text-[#1e609d] shadow-xs backdrop-blur-xs"
             >
-              Pasangan
+              Pasangan ♡
             </span>
           </div>
 
-          <!-- Big Countdown Number Overlay -->
+          <!-- Big Cute Countdown Overlay -->
           <div
             v-if="countdownRemaining !== null"
-            class="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/25 backdrop-blur-[1px]"
+            class="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#3b1d2a]/20 backdrop-blur-[1px]"
           >
             <div
-              class="flex h-28 w-28 items-center justify-center rounded-full border-4 border-white/70 bg-slate-950/70 font-display text-6xl font-extrabold text-white shadow-2xl"
+              class="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-[#f05483]/90 font-display text-5xl font-bold text-white shadow-[0_10px_30px_rgba(240,84,131,0.5)] sm:h-28 sm:w-28 sm:text-6xl"
             >
               {{ countdownRemaining }}
             </div>
@@ -562,62 +585,64 @@ defineExpose({
             v-if="showFlash"
             class="animate-shutter-flash pointer-events-none absolute inset-0 z-20 bg-white"
           />
+        </div>
 
-          <!-- Pose Review & Retake Overlay -->
-          <div
-            v-if="reviewingPose"
-            class="absolute inset-0 z-30 flex flex-col justify-between bg-slate-950/95 p-4 sm:p-5"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <span class="text-xs font-bold uppercase tracking-wider text-pink-400">
-                  Review Pose {{ reviewingPose.poseIndex + 1 }}
-                </span>
-                <p class="text-xs text-slate-400">
-                  Sudah oke atau mau ulang pose ini? Pose sebelumnya tetap aman tersimpan.
-                </p>
-              </div>
-              <span class="rounded-lg bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                Live Clip: {{ reviewingPose.motionFrames.length }} frame
+        <!-- Pose Review & Retake View (natural flow so buttons never clip on iOS/Android) -->
+        <div
+          v-if="reviewingPose"
+          class="flex flex-col justify-between gap-4 rounded-2xl border-2 border-[#f4ceda] bg-[#fff5f8] p-3.5 sm:p-5"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span class="font-display text-sm font-bold text-[#c92a5d] sm:text-base">
+                Gemes Banget? Review Pose {{ reviewingPose.poseIndex + 1 }} ♡
               </span>
+              <p class="text-xs text-[#785360]">
+                Udah oke atau mau ulang gaya? Pose sebelumnya tetap aman tersimpan.
+              </p>
             </div>
+            <span
+              class="rounded-full border border-[#a8e2c3] bg-[#e9fbf1] px-2.5 py-1 text-[11px] font-extrabold text-[#17794d]"
+            >
+              Live Clip: {{ reviewingPose.motionFrames.length }} frame
+            </span>
+          </div>
 
-            <div class="my-3 flex flex-1 items-center justify-center overflow-hidden">
-              <canvas
-                ref="reviewCanvasRef"
-                class="max-h-full max-w-full rounded-xl border border-slate-700 object-contain shadow-2xl"
-              />
-            </div>
+          <div class="flex items-center justify-center overflow-hidden rounded-2xl border-2 border-[#f4d4df] bg-white p-2.5 shadow-inner">
+            <canvas
+              ref="reviewCanvasRef"
+              class="max-h-[44dvh] max-w-full rounded-xl object-contain shadow-md sm:max-h-[420px]"
+            />
+          </div>
 
-            <div class="flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-bold text-white transition hover:border-amber-400/50 hover:bg-slate-700"
-                @click="handleRetake(false)"
-              >
-                <RefreshCw class="h-4 w-4" />
-                <span>Retake Pose Ini</span>
-              </button>
+          <div class="flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:justify-center sm:gap-3">
+            <button
+              type="button"
+              class="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl border-2 border-[#f2c4d4] bg-white px-5 py-3 text-sm font-bold text-[#613c49] transition hover:border-[#f09bb4] hover:bg-[#fff0f4]"
+              @click="handleRetake(false)"
+            >
+              <RefreshCw class="h-4 w-4" />
+              <span>Ulang Pose Ini</span>
+            </button>
 
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:brightness-110"
-                @click="handleConfirmPose(false)"
-              >
-                <Check class="h-4 w-4" />
-                <span>{{ isFinalPose ? 'Kunci & Lihat Hasil Akhir' : 'Lanjut Pose Berikutnya' }}</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              class="btn-matcha inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-extrabold"
+              @click="handleConfirmPose(false)"
+            >
+              <Check class="h-4 w-4" />
+              <span>{{ isFinalPose ? 'Selesai! Lihat Hasilnya ✨' : 'Simpan & Lanjut Pose ♡' }}</span>
+            </button>
           </div>
         </div>
 
-        <!-- Shutter & Filter Strip -->
-        <div class="space-y-4 border-t border-slate-800 bg-slate-900/90 p-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2 text-xs text-slate-300">
-              <Sparkles class="h-4 w-4 text-pink-400" />
-              <span class="font-semibold">Filter Aktif:</span>
-              <span class="rounded-md bg-slate-800 px-2 py-0.5 font-semibold text-white">
+        <!-- Shutter Button & 9 Real-Time Filter Strip -->
+        <div class="mt-3.5 space-y-3.5 border-t-2 border-dashed border-[#f5d5e0] pt-3.5 sm:mt-4 sm:pt-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-center gap-2 text-xs text-[#6d4956]">
+              <Sparkles class="h-4 w-4 shrink-0 text-[#f05483]" />
+              <span class="font-bold">Filter Aktif:</span>
+              <span class="rounded-full border border-[#f2ceda] bg-[#fff2f6] px-2.5 py-0.5 font-extrabold text-[#b82857]">
                 {{ activeFilterDef.name }}
               </span>
             </div>
@@ -625,36 +650,36 @@ defineExpose({
             <button
               type="button"
               :disabled="isBusyCapturing || !!reviewingPose || !!camera.errorMessage.value"
-              class="inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-violet-600 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-pink-500/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              class="btn-strawberry inline-flex min-h-[50px] w-full items-center justify-center gap-2.5 rounded-2xl px-7 py-3 text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               @click="beginCountdownSequence(countdownDuration, false)"
             >
               <Camera class="h-5 w-5" />
               <span>
                 {{
                   isBusyCapturing
-                    ? 'Bersiap...'
-                    : `Ambil Foto Pose ${activePoseIndex + 1}`
+                    ? 'Tahan Pose Cantik...'
+                    : `Cekrek Pose ${activePoseIndex + 1} ♡`
                 }}
               </span>
             </button>
           </div>
 
-          <!-- 9 Real-Time Filter Chips -->
-          <div class="flex gap-2 overflow-x-auto pb-1">
+          <!-- 9 Real-Time Filter Chips (horizontal swipe-friendly on mobile) -->
+          <div class="touch-scroll-x flex gap-2 overflow-x-auto pb-1.5">
             <button
               v-for="f in FILTERS"
               :key="f.id"
               type="button"
-              class="flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition"
+              class="flex min-h-[40px] shrink-0 items-center gap-2 rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition"
               :class="
                 activeFilterId === f.id
-                  ? 'border-pink-500 bg-pink-500/15 text-white ring-1 ring-pink-500/40'
-                  : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700 hover:text-white'
+                  ? 'border-[#f05483] bg-[#fff0f5] text-[#be2152] shadow-[0_2px_0_#f7c5d5]'
+                  : 'border-[#f3d9e2] bg-white text-[#6a4552] hover:border-[#eab6c6] hover:bg-[#fff7f9]'
               "
               @click="handleFilterSelect(f.id)"
             >
               <span
-                class="h-3.5 w-3.5 rounded-full border border-white/30"
+                class="h-4 w-4 rounded-full border border-black/15 shadow-inner"
                 :style="{ backgroundColor: f.swatchColor }"
               />
               <span>{{ f.name }}</span>
@@ -666,40 +691,47 @@ defineExpose({
 
     <!-- Right Progress Strip Column -->
     <div class="lg:col-span-4 xl:col-span-3">
-      <div class="sticky top-24 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-xl">
-        <div class="mb-3 flex items-center justify-between">
+      <div class="sticker-card relative rounded-[24px] p-4 pt-6 lg:sticky lg:top-24">
+        <div
+          class="washi-tape-butter pointer-events-none absolute -top-3 left-1/2 h-6 w-24 -translate-x-1/2 rotate-2 rounded-xs"
+          aria-hidden="true"
+        />
+
+        <div class="mb-3 flex items-center justify-between gap-2">
           <div>
-            <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Progres Bingkai</div>
-            <h3 class="font-display text-sm font-bold text-white">{{ selectedFrame.name }}</h3>
+            <div class="font-hand text-sm font-bold text-[#c77d19]">Progres Strip Kalian</div>
+            <h3 class="font-display text-sm font-bold text-[#3b212a]">{{ selectedFrame.name }}</h3>
           </div>
-          <span class="rounded-lg bg-slate-800 px-2 py-0.5 text-xs font-bold text-pink-300">
+          <span
+            class="rounded-full border border-[#f5c7d7] bg-[#fff0f5] px-2.5 py-0.5 text-xs font-extrabold text-[#c92a5d]"
+          >
             {{ capturedPoses.length }}/{{ selectedFrame.poseCount }}
           </span>
         </div>
 
-        <div class="flex justify-center rounded-xl border border-slate-800 bg-slate-950 p-3">
-          <canvas
-            ref="stripPreviewCanvasRef"
-            class="max-h-[380px] w-auto rounded-lg shadow-xl"
-          />
-        </div>
-
-        <div class="mt-3 grid grid-cols-4 gap-1.5">
+        <div class="mb-3 grid grid-cols-4 gap-1.5">
           <div
             v-for="idx in selectedFrame.poseCount"
             :key="idx"
-            class="rounded-lg border py-1.5 text-center text-[11px] font-bold"
+            class="rounded-xl border-2 py-1.5 text-center text-[11px] font-extrabold transition"
             :class="
               capturedPoses.some((p) => p.poseIndex === idx - 1)
-                ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                ? 'border-[#96deb8] bg-[#e9fbf1] text-[#17794d]'
                 : activePoseIndex === idx - 1
-                  ? 'border-pink-500/60 bg-pink-500/15 text-pink-300'
-                  : 'border-slate-800 bg-slate-950 text-slate-500'
+                  ? 'border-[#f05483] bg-[#fff0f5] text-[#c92a5d]'
+                  : 'border-[#f3dae3] bg-white text-[#a78390]'
             "
           >
             P{{ idx }}
             {{ capturedPoses.some((p) => p.poseIndex === idx - 1) ? '✓' : '' }}
           </div>
+        </div>
+
+        <div class="flex justify-center rounded-2xl border-2 border-[#f4d7e1] bg-[#fff5f7] p-3">
+          <canvas
+            ref="stripPreviewCanvasRef"
+            class="max-h-[280px] w-auto rounded-lg shadow-[0_8px_20px_rgba(120,45,70,0.16)] lg:max-h-[370px]"
+          />
         </div>
       </div>
     </div>

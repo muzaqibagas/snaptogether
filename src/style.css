@@ -2,16 +2,160 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-text-size-adjust: 100%;
   }
 
-  h1, h2, h3, .font-display {
-    font-family: 'Space Grotesk', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  html,
+  body {
+    background-color: #fff6f4;
+    color: #3b212a;
+    overflow-x: clip;
+  }
+
+  button,
+  a,
+  label,
+  select,
+  input {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: 'Fredoka', 'Plus Jakarta Sans', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
+  }
+
+  .font-hand {
+    font-family: 'Caveat', 'Fredoka', cursive, sans-serif;
   }
 
   .font-mono-timer {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
   }
+}
+
+/* Warm stationery polka-dot & love-letter paper background */
+.bg-stationery-paper {
+  background-color: #fff6f4;
+  background-image:
+    radial-gradient(rgba(236, 118, 154, 0.14) 1.35px, transparent 1.35px),
+    linear-gradient(180deg, #fff9f7 0%, #fff3f1 55%, #fff7eb 100%);
+  background-size: 24px 24px, 100% 100%;
+  background-position: 0 0, 0 0;
+}
+
+/* Tactile sticker-book card */
+.sticker-card {
+  background-color: #fffdfb;
+  border: 2px solid #f4ceda;
+  box-shadow:
+    0 5px 0 #f7dce5,
+    0 14px 28px -14px rgba(190, 68, 107, 0.16);
+}
+
+/* Soft inner craft panel */
+.craft-panel {
+  background-color: #fff4f6;
+  border: 1.5px solid #f5d3df;
+}
+
+/* Washi masking tape strip */
+.washi-tape {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 206, 222, 0.85),
+    rgba(255, 206, 222, 0.85) 8px,
+    rgba(255, 229, 238, 0.92) 8px,
+    rgba(255, 229, 238, 0.92) 16px
+  );
+  border-left: 2px dashed rgba(240, 84, 131, 0.28);
+  border-right: 2px dashed rgba(240, 84, 131, 0.28);
+  box-shadow: 0 2px 6px rgba(176, 72, 108, 0.12);
+}
+
+.washi-tape-butter {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 232, 168, 0.88),
+    rgba(255, 232, 168, 0.88) 8px,
+    rgba(255, 243, 207, 0.92) 8px,
+    rgba(255, 243, 207, 0.92) 16px
+  );
+  border-left: 2px dashed rgba(217, 140, 26, 0.28);
+  border-right: 2px dashed rgba(217, 140, 26, 0.28);
+  box-shadow: 0 2px 6px rgba(176, 120, 32, 0.1);
+}
+
+/* Tactile pressed button feel */
+.btn-strawberry {
+  background-color: #f05483;
+  color: #ffffff;
+  border-bottom: 4px solid #c63360;
+  box-shadow: 0 8px 18px -6px rgba(240, 84, 131, 0.42);
+  transition: transform 140ms ease, background-color 140ms ease, border-bottom-width 140ms ease;
+}
+
+.btn-strawberry:hover:not(:disabled) {
+  background-color: #e44374;
+}
+
+.btn-strawberry:active:not(:disabled) {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+.btn-sky {
+  background-color: #4f9ee8;
+  color: #ffffff;
+  border-bottom: 4px solid #2d78be;
+  box-shadow: 0 8px 18px -6px rgba(79, 158, 232, 0.36);
+  transition: transform 140ms ease, background-color 140ms ease, border-bottom-width 140ms ease;
+}
+
+.btn-sky:hover:not(:disabled) {
+  background-color: #3c8ed9;
+}
+
+.btn-sky:active:not(:disabled) {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+.btn-matcha {
+  background-color: #24b47e;
+  color: #ffffff;
+  border-bottom: 4px solid #16845b;
+  box-shadow: 0 8px 18px -6px rgba(36, 180, 126, 0.36);
+  transition: transform 140ms ease, background-color 140ms ease, border-bottom-width 140ms ease;
+}
+
+.btn-matcha:hover:not(:disabled) {
+  background-color: #1da06f;
+}
+
+.btn-matcha:active:not(:disabled) {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+/* Safe area helpers for iPhone notch / Dynamic Island / home indicator & Android gesture bar */
+.safe-top {
+  padding-top: max(0.625rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(0.875rem, env(safe-area-inset-bottom));
+}
+
+.safe-x {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
 }
 
 @keyframes shutterFlash {
@@ -27,21 +171,47 @@
   animation: shutterFlash 380ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Custom subtle scrollbar */
+@keyframes gentleFloat {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(3deg);
+  }
+}
+
+.animate-gentle-float {
+  animation: gentleFloat 4.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-gentle-float {
+    animation: none;
+  }
+}
+
+/* Smooth touch scroll on mobile horizontal filter strip */
+.touch-scroll-x {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Warm pastel scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
+  background: #fff1f4;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.35);
+  background: #efb8c9;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.55);
+  background: #e593ae;
 }

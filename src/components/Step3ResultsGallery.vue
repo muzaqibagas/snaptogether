@@ -7,10 +7,12 @@ import {
   ExternalLink,
   Film,
   FolderArchive,
+  Heart,
   Image as ImageIcon,
   Loader2,
   QrCode,
   RotateCcw,
+  Share2,
   Sparkles,
 } from 'lucide-vue-next';
 import QRCode from 'qrcode';
@@ -81,6 +83,10 @@ let liveLoopTimerId: ReturnType<typeof setInterval> | null = null;
 let liveTick = 0;
 let qrSenderHandle: { destroy: () => void } | null = null;
 
+const canShareFiles = computed(
+  () => typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && typeof navigator.share === 'function',
+);
+
 const totalAssetsReadyCount = computed(() => {
   let count = 0;
   if (localAssets.value.mainFramedPng.url) count++;
@@ -120,13 +126,17 @@ function stopLivePreviewAnimation() {
   }
 }
 
-watch(activeTab, (tab) => {
-  if (tab === 'video') {
-    startLivePreviewAnimation();
-  } else {
-    stopLivePreviewAnimation();
-  }
-}, { flush: 'post' });
+watch(
+  activeTab,
+  (tab) => {
+    if (tab === 'video') {
+      startLivePreviewAnimation();
+    } else {
+      stopLivePreviewAnimation();
+    }
+  },
+  { flush: 'post' },
+);
 
 async function buildSessionOutputs() {
   isBuildingPhoto.value = true;
@@ -235,8 +245,8 @@ function setupQrGallery() {
           width: 240,
           margin: 2,
           color: {
-            dark: '#0f172a',
-            light: '#ffffff',
+            dark: '#4a1d35',
+            light: '#fffdfb',
           },
         });
       } catch {
@@ -257,6 +267,21 @@ function triggerDownload(url: string | null, filename: string) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+}
+
+async function shareBlobAsset(blob: Blob | null, filename: string, mimeType: string) {
+  if (!blob || !canShareFiles.value) return;
+  try {
+    const file = new File([blob], filename, { type: mimeType });
+    if (navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: 'Kenangan SnapTogether ♡',
+        files: [file],
+      });
+    }
+  } catch {
+    // ignore cancelled share
+  }
 }
 
 async function downloadAllRawAsZip() {
@@ -297,102 +322,136 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-12">
+  <section class="safe-x safe-bottom mx-auto grid max-w-7xl gap-5 py-4 sm:py-6 lg:grid-cols-12 lg:gap-6">
     <!-- Left Preview Tabs (Framed Strip vs Live Photo Video) -->
     <div class="space-y-4 lg:col-span-6 xl:col-span-5">
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/85 p-5 shadow-2xl">
+      <div class="sticker-card relative rounded-[24px] p-4 pt-6 sm:p-5 sm:pt-7">
+        <div
+          class="washi-tape pointer-events-none absolute -top-3 left-1/2 h-6 w-28 -translate-x-1/2 -rotate-1 rounded-xs"
+          aria-hidden="true"
+        />
+
+        <div class="mb-3 flex items-center justify-between">
+          <div class="font-hand text-base font-bold text-[#d84a76]">
+            Yeay! Hasil Fotobox Kalian ♡
+          </div>
+          <span class="rounded-full border border-[#f5c7d7] bg-[#fff0f5] px-2.5 py-0.5 text-[11px] font-extrabold text-[#c92a5d]">
+            {{ selectedFrame.name }}
+          </span>
+        </div>
+
         <!-- Tabs -->
-        <div class="mb-4 grid grid-cols-2 gap-1.5 rounded-xl border border-slate-800 bg-slate-950 p-1">
+        <div class="mb-4 grid grid-cols-2 gap-1.5 rounded-2xl border-2 border-[#f3d4de] bg-[#fff5f8] p-1">
           <button
             type="button"
-            class="flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition"
-            :class="activeTab === 'photo' ? 'bg-pink-500 text-white shadow' : 'text-slate-400 hover:text-white'"
+            class="flex min-h-[40px] items-center justify-center gap-2 rounded-xl py-2 text-xs font-extrabold transition"
+            :class="
+              activeTab === 'photo'
+                ? 'bg-[#f05483] text-white shadow-[0_2px_0_#c63360]'
+                : 'text-[#7b5563] hover:text-[#3b212a]'
+            "
             @click="activeTab = 'photo'"
           >
             <ImageIcon class="h-4 w-4" />
-            <span>Foto Strip Berbingkai</span>
+            <span>Foto Berbingkai</span>
           </button>
           <button
             type="button"
-            class="flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition"
-            :class="activeTab === 'video' ? 'bg-pink-500 text-white shadow' : 'text-slate-400 hover:text-white'"
+            class="flex min-h-[40px] items-center justify-center gap-2 rounded-xl py-2 text-xs font-extrabold transition"
+            :class="
+              activeTab === 'video'
+                ? 'bg-[#f05483] text-white shadow-[0_2px_0_#c63360]'
+                : 'text-[#7b5563] hover:text-[#3b212a]'
+            "
             @click="activeTab = 'video'"
           >
             <Film class="h-4 w-4" />
-            <span>Live Photo Video</span>
+            <span>Live Photo</span>
           </button>
         </div>
 
         <!-- Tab Content -->
-        <div class="flex min-h-[420px] items-center justify-center rounded-xl border border-slate-800 bg-slate-950 p-4">
-          <div v-if="isBuildingPhoto" class="flex flex-col items-center gap-3 text-slate-400">
-            <Loader2 class="h-8 w-8 animate-spin text-pink-500" />
-            <p class="text-xs font-medium">Merender foto berbingkai HD...</p>
+        <div
+          class="flex min-h-[340px] items-center justify-center rounded-2xl border-2 border-[#f4d7e1] bg-[#fff5f7] p-4 sm:min-h-[420px]"
+        >
+          <div v-if="isBuildingPhoto" class="flex flex-col items-center gap-3 text-[#835a68]">
+            <Loader2 class="h-8 w-8 animate-spin text-[#f05483]" />
+            <p class="text-xs font-bold">Lagi merangkai kenangan kalian HD...</p>
           </div>
 
           <img
             v-else-if="activeTab === 'photo' && localAssets.mainFramedPng.url"
             :src="localAssets.mainFramedPng.url"
             alt="Hasil Foto Strip Berbingkai"
-            class="max-h-[480px] w-auto rounded-lg shadow-2xl"
+            class="max-h-[420px] w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)] sm:max-h-[480px]"
           />
 
           <canvas
             v-else-if="activeTab === 'video'"
             ref="livePreviewCanvasRef"
-            class="max-h-[480px] w-auto rounded-lg shadow-2xl"
+            class="max-h-[420px] w-auto rounded-lg shadow-[0_12px_28px_rgba(120,45,70,0.18)] sm:max-h-[480px]"
           />
         </div>
 
-        <p v-if="buildError" class="mt-3 text-xs text-rose-400">{{ buildError }}</p>
+        <p v-if="buildError" class="mt-3 rounded-xl bg-[#ffe8ef] px-3 py-2 text-xs font-semibold text-[#be2152]">
+          {{ buildError }}
+        </p>
       </div>
     </div>
 
     <!-- Right Downloads + QR Code Gallery Column -->
-    <div class="space-y-6 lg:col-span-6 xl:col-span-7">
+    <div class="space-y-5 lg:col-span-6 xl:col-span-7">
       <!-- QR Barcode & Digital Gallery Card -->
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/85 p-5 shadow-xl">
-        <div class="flex flex-col gap-5 sm:flex-row sm:items-center">
+      <div class="sticker-card rounded-[24px] p-4 sm:p-5">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
           <!-- QR Box -->
-          <div class="flex shrink-0 flex-col items-center justify-center rounded-2xl border border-slate-700 bg-white p-3">
+          <div
+            class="mx-auto flex shrink-0 flex-col items-center justify-center rounded-2xl border-2 border-[#f3cedb] bg-[#fffdfb] p-3 shadow-xs sm:mx-0"
+          >
             <img
               v-if="qrDataUrl"
               :src="qrDataUrl"
               alt="QR Code Galeri SnapTogether"
-              class="h-40 w-40"
+              class="h-36 w-36 sm:h-40 sm:w-40"
             />
-            <div v-else class="flex h-40 w-40 items-center justify-center text-slate-500">
-              <Loader2 class="h-6 w-6 animate-spin" />
+            <div v-else class="flex h-36 w-36 items-center justify-center text-[#9b7684] sm:h-40 sm:w-40">
+              <Loader2 class="h-6 w-6 animate-spin text-[#f05483]" />
             </div>
-            <span class="mt-1.5 text-[10px] font-bold tracking-wide text-slate-700">SCAN DARI KAMERA HP</span>
+            <span class="mt-1.5 text-[10px] font-extrabold tracking-wide text-[#7c4057]">
+              SCAN DARI KAMERA HP ♡
+            </span>
           </div>
 
           <!-- QR Info & Actions -->
-          <div class="flex-1 space-y-3">
+          <div class="flex-1 space-y-2.5">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full border border-[#9ce0be] bg-[#e8faf0] px-2.5 py-1 text-[11px] font-extrabold text-[#17794d]"
+              >
                 <QrCode class="h-3.5 w-3.5" />
-                Galeri Digital Siap ({{ totalAssetsReadyCount }}/4 Aset)
+                Galeri Siap ({{ totalAssetsReadyCount }}/4 Paket)
               </span>
               <span
                 v-if="qrScanNotified"
-                class="inline-flex items-center gap-1 rounded-full bg-cyan-500/20 px-2.5 py-1 text-[11px] font-semibold text-cyan-300"
+                class="inline-flex items-center gap-1 rounded-full border border-[#a9d5fa] bg-[#e9f5ff] px-2.5 py-1 text-[11px] font-extrabold text-[#2163a1]"
               >
                 <CheckCircle2 class="h-3.5 w-3.5" />
-                HP Terhubung!
+                HP Tersambung! ♡
               </span>
             </div>
 
-            <h2 class="font-display text-lg font-bold text-white">Unduh Cepat lewat QR atau Langsung</h2>
-            <p class="text-xs leading-relaxed text-slate-400">
-              Pindai kode QR menggunakan kamera ponsel untuk membuka halaman galeri berisi 4 aset lengkap selama sesi aktif
-              (<span class="font-mono-timer font-semibold text-slate-200">{{ formattedTimeRemaining }}</span> tersisa).
+            <h2 class="font-display text-lg font-bold text-[#3b212a]">
+              Simpan Cepat lewat QR atau Langsung
+            </h2>
+            <p class="text-xs leading-relaxed text-[#795361]">
+              Scan QR pakai kamera HP buat langsung buka galeri 4 aset lengkap selama sesi aktif
+              (<span class="font-mono-timer font-bold text-[#c92a5d]">{{ formattedTimeRemaining }}</span> tersisa).
             </p>
 
-            <div class="flex flex-wrap gap-2.5 pt-1">
+            <div class="flex flex-wrap gap-2 pt-1">
               <button
                 type="button"
-                class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-violet-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-pink-500/25 transition hover:brightness-110"
+                class="btn-strawberry inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold"
                 @click="$emit('openDigitalGallery')"
               >
                 <ExternalLink class="h-4 w-4" />
@@ -403,7 +462,7 @@ onUnmounted(() => {
                 v-if="cloudEnabled"
                 type="button"
                 :disabled="isUploadingCloud"
-                class="inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-4 py-2.5 text-xs font-bold text-cyan-200 transition hover:bg-cyan-500/25 disabled:opacity-50"
+                class="btn-sky inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold disabled:opacity-50"
                 @click="handleCloudUpload"
               >
                 <CloudUpload class="h-4 w-4" />
@@ -411,99 +470,185 @@ onUnmounted(() => {
               </button>
             </div>
 
-            <p v-if="cloudLinks" class="text-[11px] text-emerald-300">
-              Berhasil diunggah ke Cloudinary! Tautan siap dibagikan.
+            <p v-if="cloudLinks" class="text-[11px] font-bold text-[#17794d]">
+              Berhasil diunggah ke Cloudinary! Tautan siap dibagikan ke pasangan.
             </p>
-            <p v-if="cloudError" class="text-[11px] text-rose-400">{{ cloudError }}</p>
+            <p v-if="cloudError" class="text-[11px] font-semibold text-[#be2152]">{{ cloudError }}</p>
           </div>
         </div>
       </div>
 
       <!-- 4-Asset Complete Download Section -->
-      <div class="rounded-2xl border border-slate-800 bg-slate-900/85 p-5 shadow-xl">
-        <div class="mb-4 flex items-center justify-between">
+      <div class="sticker-card rounded-[24px] p-4 sm:p-5">
+        <div class="mb-4 flex items-center justify-between gap-2">
           <div>
-            <h3 class="font-display text-base font-bold text-white">4 Paket Unduhan Sesi</h3>
-            <p class="text-xs text-slate-400">Semua file diproses langsung di browser tanpa watermark berbayar.</p>
+            <h3 class="font-display text-base font-bold text-[#3b212a]">
+              4 Paket Kenangan Lengkap ♡
+            </h3>
+            <p class="text-xs text-[#795361]">
+              Semua foto &amp; video diproses gratis di browser tanpa watermark.
+            </p>
           </div>
-          <Sparkles class="h-5 w-5 text-pink-400" />
+          <Sparkles class="h-5 w-5 shrink-0 text-[#f59e0b]" />
         </div>
 
         <div class="grid gap-3 sm:grid-cols-2">
           <!-- Asset 1: Video Live Photo Bergerak -->
-          <div class="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/75 p-4">
+          <div class="craft-panel flex flex-col justify-between rounded-2xl p-4">
             <div>
               <div class="flex items-center justify-between">
-                <span class="rounded-md bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold text-violet-300">1. VIDEO LIVE</span>
-                <Loader2 v-if="isEncodingVideos && !localAssets.livePhotoVideo.url" class="h-4 w-4 animate-spin text-slate-400" />
+                <span class="rounded-full bg-[#efe4ff] px-2.5 py-0.5 text-[10px] font-extrabold text-[#6b33b5]">
+                  1. VIDEO LIVE
+                </span>
+                <Loader2
+                  v-if="isEncodingVideos && !localAssets.livePhotoVideo.url"
+                  class="h-4 w-4 animate-spin text-[#9a7382]"
+                />
               </div>
-              <h4 class="mt-2 text-sm font-bold text-white">Video Live Photo Bergerak</h4>
-              <p class="mt-1 text-xs text-slate-400">Gabungan semua pose bergerak dalam 1 video berbingkai.</p>
+              <h4 class="mt-2 font-display text-sm font-bold text-[#3b212a]">
+                Video Live Photo Bergerak
+              </h4>
+              <p class="mt-1 text-xs text-[#7a5462]">
+                Gabungan semua momen gerak kalian dalam 1 video berbingkai lucu.
+              </p>
             </div>
-            <button
-              type="button"
-              :disabled="!localAssets.livePhotoVideo.url"
-              class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
-              @click="triggerDownload(localAssets.livePhotoVideo.url, localAssets.livePhotoVideo.filename)"
-            >
-              <Download class="h-4 w-4" />
-              <span>{{ localAssets.livePhotoVideo.url ? 'Unduh Video Live' : 'Membuat Video...' }}</span>
-            </button>
+            <div class="mt-3 flex gap-2">
+              <button
+                type="button"
+                :disabled="!localAssets.livePhotoVideo.url"
+                class="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#7b4ce2] px-3.5 py-2 text-xs font-extrabold text-white shadow-[0_3px_0_#5931b3] transition hover:bg-[#6a3cd1] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50"
+                @click="triggerDownload(localAssets.livePhotoVideo.url, localAssets.livePhotoVideo.filename)"
+              >
+                <Download class="h-4 w-4" />
+                <span>{{ localAssets.livePhotoVideo.url ? 'Unduh Video Live' : 'Membuat Video...' }}</span>
+              </button>
+              <button
+                v-if="canShareFiles && localAssets.livePhotoVideo.blob"
+                type="button"
+                class="flex min-h-[42px] w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#d9c7fa] bg-white text-[#6b33b5] hover:bg-[#f6f0ff]"
+                title="Bagikan / Simpan di HP"
+                aria-label="Bagikan Video Live"
+                @click="
+                  shareBlobAsset(
+                    localAssets.livePhotoVideo.blob,
+                    localAssets.livePhotoVideo.filename,
+                    localAssets.livePhotoVideo.mimeType,
+                  )
+                "
+              >
+                <Share2 class="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <!-- Asset 2: Video Story 9:16 -->
-          <div class="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/75 p-4">
+          <div class="craft-panel flex flex-col justify-between rounded-2xl p-4">
             <div>
               <div class="flex items-center justify-between">
-                <span class="rounded-md bg-pink-500/20 px-2 py-0.5 text-[10px] font-bold text-pink-300">2. STORY 9:16</span>
-                <Loader2 v-if="isEncodingVideos && !localAssets.storyVideo.url" class="h-4 w-4 animate-spin text-slate-400" />
+                <span class="rounded-full bg-[#ffe0eb] px-2.5 py-0.5 text-[10px] font-extrabold text-[#c92a5d]">
+                  2. STORY 9:16
+                </span>
+                <Loader2
+                  v-if="isEncodingVideos && !localAssets.storyVideo.url"
+                  class="h-4 w-4 animate-spin text-[#9a7382]"
+                />
               </div>
-              <h4 class="mt-2 text-sm font-bold text-white">Video Live Photo Story</h4>
-              <p class="mt-1 text-xs text-slate-400">Versi playback vertikal siap upload ke IG Story & TikTok.</p>
+              <h4 class="mt-2 font-display text-sm font-bold text-[#3b212a]">
+                Video Live Story IG / TikTok
+              </h4>
+              <p class="mt-1 text-xs text-[#7a5462]">
+                Versi vertikal 9:16 langsung pas buat pamer di IG Story, TikTok, atau WA Status.
+              </p>
             </div>
-            <button
-              type="button"
-              :disabled="!localAssets.storyVideo.url"
-              class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-pink-600 disabled:cursor-not-allowed disabled:opacity-50"
-              @click="triggerDownload(localAssets.storyVideo.url, localAssets.storyVideo.filename)"
-            >
-              <Download class="h-4 w-4" />
-              <span>{{ localAssets.storyVideo.url ? 'Unduh Video Story' : 'Merender Story...' }}</span>
-            </button>
+            <div class="mt-3 flex gap-2">
+              <button
+                type="button"
+                :disabled="!localAssets.storyVideo.url"
+                class="btn-strawberry inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold disabled:cursor-not-allowed disabled:opacity-50"
+                @click="triggerDownload(localAssets.storyVideo.url, localAssets.storyVideo.filename)"
+              >
+                <Download class="h-4 w-4" />
+                <span>{{ localAssets.storyVideo.url ? 'Unduh Video Story' : 'Merender Story...' }}</span>
+              </button>
+              <button
+                v-if="canShareFiles && localAssets.storyVideo.blob"
+                type="button"
+                class="flex min-h-[42px] w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#f4bfd1] bg-white text-[#c92a5d] hover:bg-[#fff0f5]"
+                title="Bagikan / Simpan di HP"
+                aria-label="Bagikan Video Story"
+                @click="
+                  shareBlobAsset(
+                    localAssets.storyVideo.blob,
+                    localAssets.storyVideo.filename,
+                    localAssets.storyVideo.mimeType,
+                  )
+                "
+              >
+                <Share2 class="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <!-- Asset 3: Foto Utama Berbingkai HD -->
-          <div class="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/75 p-4">
+          <div class="craft-panel flex flex-col justify-between rounded-2xl p-4">
             <div>
-              <span class="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">3. FOTO UTAMA HD</span>
-              <h4 class="mt-2 text-sm font-bold text-white">Foto Strip Berbingkai (.png)</h4>
-              <p class="mt-1 text-xs text-slate-400">Resolusi tinggi lengkap dengan filter dan ornamen bingkai.</p>
+              <span class="rounded-full bg-[#dff8eb] px-2.5 py-0.5 text-[10px] font-extrabold text-[#15784c]">
+                3. FOTO UTAMA HD
+              </span>
+              <h4 class="mt-2 font-display text-sm font-bold text-[#3b212a]">
+                Foto Strip Berbingkai (.png)
+              </h4>
+              <p class="mt-1 text-xs text-[#7a5462]">
+                Resolusi tinggi lengkap dengan filter dan ornamen lucu.
+              </p>
             </div>
-            <button
-              type="button"
-              :disabled="!localAssets.mainFramedPng.url"
-              class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3.5 py-2.5 text-xs font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
-              @click="triggerDownload(localAssets.mainFramedPng.url, localAssets.mainFramedPng.filename)"
-            >
-              <Download class="h-4 w-4" />
-              <span>Unduh Foto Berbingkai</span>
-            </button>
+            <div class="mt-3 flex gap-2">
+              <button
+                type="button"
+                :disabled="!localAssets.mainFramedPng.url"
+                class="btn-matcha inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold disabled:opacity-50"
+                @click="triggerDownload(localAssets.mainFramedPng.url, localAssets.mainFramedPng.filename)"
+              >
+                <Download class="h-4 w-4" />
+                <span>Unduh Foto Berbingkai</span>
+              </button>
+              <button
+                v-if="canShareFiles && localAssets.mainFramedPng.blob"
+                type="button"
+                class="flex min-h-[42px] w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#a8e2c3] bg-white text-[#15784c] hover:bg-[#ebfbf2]"
+                title="Simpan / Bagikan ke Galeri HP"
+                aria-label="Simpan Foto Berbingkai"
+                @click="
+                  shareBlobAsset(
+                    localAssets.mainFramedPng.blob,
+                    localAssets.mainFramedPng.filename,
+                    localAssets.mainFramedPng.mimeType,
+                  )
+                "
+              >
+                <Share2 class="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <!-- Asset 4: Semua Foto Biasa Tanpa Bingkai -->
-          <div class="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/75 p-4">
+          <div class="craft-panel flex flex-col justify-between rounded-2xl p-4">
             <div>
-              <span class="rounded-md bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+              <span class="rounded-full bg-[#e0f2fe] px-2.5 py-0.5 text-[10px] font-extrabold text-[#1d63a1]">
                 4. FOTO POLOS ({{ localAssets.rawPoses.length }})
               </span>
-              <h4 class="mt-2 text-sm font-bold text-white">Semua Foto Tanpa Bingkai</h4>
-              <p class="mt-1 text-xs text-slate-400">Foto individual Pose 1–{{ localAssets.rawPoses.length }} bersih tanpa bingkai.</p>
+              <h4 class="mt-2 font-display text-sm font-bold text-[#3b212a]">
+                Semua Foto Tanpa Bingkai
+              </h4>
+              <p class="mt-1 text-xs text-[#7a5462]">
+                Foto satuan Pose 1–{{ localAssets.rawPoses.length }} bersih tanpa bingkai.
+              </p>
             </div>
             <div class="mt-3 flex flex-wrap gap-1.5">
               <button
                 type="button"
                 :disabled="localAssets.rawPoses.length === 0"
-                class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-cyan-500 px-3 py-2.5 text-xs font-bold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-50"
+                class="btn-sky inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold disabled:opacity-50"
                 @click="downloadAllRawAsZip"
               >
                 <FolderArchive class="h-4 w-4" />
@@ -513,7 +658,7 @@ onUnmounted(() => {
                 v-for="raw in localAssets.rawPoses"
                 :key="raw.poseIndex"
                 type="button"
-                class="rounded-xl border border-slate-700 bg-slate-900 px-2.5 py-2 text-[11px] font-bold text-slate-200 transition hover:border-cyan-400 hover:text-cyan-300"
+                class="min-h-[42px] rounded-xl border-2 border-[#c6e2fb] bg-white px-3 py-2 text-xs font-extrabold text-[#2163a1] transition hover:border-[#4f9ee8] hover:bg-[#eef7ff]"
                 @click="triggerDownload(raw.url, raw.filename)"
               >
                 P{{ raw.poseIndex + 1 }}
@@ -522,14 +667,19 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="mt-5 flex justify-end border-t border-slate-800 pt-4">
+        <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-[#f4d4df] pt-4">
+          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-[#8a6371]">
+            <Heart class="h-3.5 w-3.5 fill-[#f05483] text-[#f05483]" />
+            Mau coba gaya frame atau filter lain?
+          </span>
+
           <button
             type="button"
-            class="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 py-2.5 text-xs font-bold text-white transition hover:border-pink-500/50 hover:bg-slate-700"
+            class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border-2 border-[#f2c4d4] bg-white px-5 py-2.5 text-xs font-extrabold text-[#663d4b] transition hover:border-[#f05483] hover:bg-[#fff0f5] hover:text-[#c92a5d] sm:w-auto"
             @click="$emit('startNewSession')"
           >
             <RotateCcw class="h-4 w-4" />
-            <span>Akhiri & Mulai Sesi Baru</span>
+            <span>Foto Lagi Dari Awal ♡</span>
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, X } from 'lucide-vue-next';
+import { AlertTriangle, Heart, X } from 'lucide-vue-next';
 import { onMounted, ref, watch } from 'vue';
 import DigitalGalleryView from './components/DigitalGalleryView.vue';
 import Step1FrameSelection from './components/Step1FrameSelection.vue';
@@ -147,15 +147,14 @@ onMounted(() => {
   />
 
   <!-- Main 3-Step Photobooth Application -->
-  <div v-else class="relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
-    <!-- Ambient Decorative Background Glows -->
-    <div class="pointer-events-none fixed inset-0 overflow-hidden">
-      <div class="absolute -left-28 -top-28 h-96 w-96 rounded-full bg-pink-600/15 blur-3xl" />
-      <div class="absolute -right-28 top-1/3 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
-      <div class="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-violet-600/10 blur-3xl" />
+  <div v-else class="bg-stationery-paper relative flex min-h-[100dvh] flex-col overflow-x-clip text-[#3b212a]">
+    <!-- Subtle Handcrafted Paper Corner Doodles (light & warm, never dark neon blobs) -->
+    <div class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+      <div class="absolute -left-16 top-16 h-64 w-64 rounded-full bg-[#ffe3ec]/55 blur-2xl" />
+      <div class="absolute -right-14 bottom-24 h-64 w-64 rounded-full bg-[#ffeed7]/60 blur-2xl" />
     </div>
 
-    <div class="relative z-10">
+    <div class="relative z-10 flex flex-1 flex-col">
       <TopHeader
         :current-step="booth.state.currentStep"
         :mode="booth.state.mode"
@@ -170,80 +169,93 @@ onMounted(() => {
       />
 
       <!-- Session Timeout Banner -->
-      <div
-        v-if="booth.showTimeoutBanner.value"
-        class="mx-auto mt-4 flex max-w-4xl items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/15 px-4 py-3 text-xs text-amber-200"
-      >
-        <div class="flex items-center gap-2.5">
-          <AlertTriangle class="h-4 w-4 shrink-0 text-amber-400" />
-          <span>
-            <strong>Waktu sesi 10 menit telah habis.</strong> Memori sementara dibersihkan dan sesi baru telah disiapkan.
-          </span>
-        </div>
-        <button
-          type="button"
-          class="rounded-lg p-1 hover:bg-amber-500/20"
-          @click="booth.showTimeoutBanner.value = false"
+      <div v-if="booth.showTimeoutBanner.value" class="safe-x mx-auto mt-3 w-full max-w-4xl">
+        <div
+          class="flex items-center justify-between gap-3 rounded-2xl border-2 border-[#f4c772] bg-[#fff7dc] px-4 py-3 text-xs text-[#734709] shadow-sm"
         >
-          <X class="h-4 w-4" />
-        </button>
+          <div class="flex items-center gap-2.5">
+            <AlertTriangle class="h-4 w-4 shrink-0 text-[#d88911]" />
+            <span>
+              <strong>Waktu sesi 10 menit udah habis, nih!</strong> Memori sementara dibersihkan dan booth baru sudah siap dipakai lagi.
+            </span>
+          </div>
+          <button
+            type="button"
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl hover:bg-[#fae6ae]"
+            aria-label="Tutup pemberitahuan"
+            @click="booth.showTimeoutBanner.value = false"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      <!-- Step 1: Frame & Mode Selection -->
-      <Step1FrameSelection
-        v-if="booth.state.currentStep === 1"
-        :mode="booth.state.mode"
-        :frames="booth.allFrames.value"
-        :selected-frame="booth.selectedFrame.value"
-        :active-filter-id="booth.state.activeFilterId"
-        :ldr-state="ldrPeer.connectionState.value"
-        :ldr-room-code="ldrPeer.roomCode.value"
-        :ldr-error="ldrPeer.errorMessage.value"
-        :ldr-is-host="ldrPeer.isHost.value"
-        @update:mode="handleModeChange"
-        @select-frame="handleSelectFrame"
-        @add-custom-frame="booth.addCustomFrame"
-        @create-ldr-room="handleCreateLdrRoom"
-        @join-ldr-room="handleJoinLdrRoom"
-        @start-session="handleStartSession"
-      />
+      <main class="flex-1">
+        <!-- Step 1: Frame & Mode Selection -->
+        <Step1FrameSelection
+          v-if="booth.state.currentStep === 1"
+          :mode="booth.state.mode"
+          :frames="booth.allFrames.value"
+          :selected-frame="booth.selectedFrame.value"
+          :active-filter-id="booth.state.activeFilterId"
+          :ldr-state="ldrPeer.connectionState.value"
+          :ldr-room-code="ldrPeer.roomCode.value"
+          :ldr-error="ldrPeer.errorMessage.value"
+          :ldr-is-host="ldrPeer.isHost.value"
+          @update:mode="handleModeChange"
+          @select-frame="handleSelectFrame"
+          @add-custom-frame="booth.addCustomFrame"
+          @create-ldr-room="handleCreateLdrRoom"
+          @join-ldr-room="handleJoinLdrRoom"
+          @start-session="handleStartSession"
+        />
 
-      <!-- Step 2: Camera Booth, Real-Time Filters & Per-Pose Retake -->
-      <Step2CameraBooth
-        v-else-if="booth.state.currentStep === 2"
-        ref="step2Ref"
-        :mode="booth.state.mode"
-        :selected-frame="booth.selectedFrame.value"
-        :active-filter-id="booth.state.activeFilterId"
-        :countdown-duration="booth.state.countdownDuration"
-        :active-pose-index="booth.activePoseIndex.value"
-        :captured-poses="booth.state.capturedPoses"
-        :reviewing-pose="booth.reviewingPose.value"
-        :is-muted="booth.isMuted.value"
-        :ldr-state="ldrPeer.connectionState.value"
-        :remote-stream="ldrPeer.remoteStream.value"
-        :on-sync-message="ldrPeer.onSyncMessage"
-        @update:filter-id="booth.setFilter"
-        @update:countdown="booth.setCountdownDuration"
-        @first-shutter-pressed="handleFirstShutter"
-        @pose-captured="handlePoseCaptured"
-        @retake-pose="booth.retakeActivePose"
-        @confirm-pose="handleConfirmPose"
-        @send-sync="ldrPeer.sendSyncMessage"
-      />
+        <!-- Step 2: Camera Booth, Real-Time Filters & Per-Pose Retake -->
+        <Step2CameraBooth
+          v-else-if="booth.state.currentStep === 2"
+          ref="step2Ref"
+          :mode="booth.state.mode"
+          :selected-frame="booth.selectedFrame.value"
+          :active-filter-id="booth.state.activeFilterId"
+          :countdown-duration="booth.state.countdownDuration"
+          :active-pose-index="booth.activePoseIndex.value"
+          :captured-poses="booth.state.capturedPoses"
+          :reviewing-pose="booth.reviewingPose.value"
+          :is-muted="booth.isMuted.value"
+          :ldr-state="ldrPeer.connectionState.value"
+          :remote-stream="ldrPeer.remoteStream.value"
+          :on-sync-message="ldrPeer.onSyncMessage"
+          @update:filter-id="booth.setFilter"
+          @update:countdown="booth.setCountdownDuration"
+          @first-shutter-pressed="handleFirstShutter"
+          @pose-captured="handlePoseCaptured"
+          @retake-pose="booth.retakeActivePose"
+          @confirm-pose="handleConfirmPose"
+          @send-sync="ldrPeer.sendSyncMessage"
+        />
 
-      <!-- Step 3: Results, Live Photo Video, 4 Assets & QR Gallery -->
-      <Step3ResultsGallery
-        v-else-if="booth.state.currentStep === 3"
-        :mode="booth.state.mode"
-        :selected-frame="booth.selectedFrame.value"
-        :active-filter-id="booth.state.activeFilterId"
-        :captured-poses="booth.state.capturedPoses"
-        :formatted-time-remaining="sessionTimer.formattedTime.value"
-        @assets-ready="handleAssetsReady"
-        @open-digital-gallery="showLocalGalleryView = true"
-        @start-new-session="handleFullReset"
-      />
+        <!-- Step 3: Results, Live Photo Video, 4 Assets & QR Gallery -->
+        <Step3ResultsGallery
+          v-else-if="booth.state.currentStep === 3"
+          :mode="booth.state.mode"
+          :selected-frame="booth.selectedFrame.value"
+          :active-filter-id="booth.state.activeFilterId"
+          :captured-poses="booth.state.capturedPoses"
+          :formatted-time-remaining="sessionTimer.formattedTime.value"
+          @assets-ready="handleAssetsReady"
+          @open-digital-gallery="showLocalGalleryView = true"
+          @start-new-session="handleFullReset"
+        />
+      </main>
+
+      <!-- Sweet Minimal Footer (hidden during Step 1 mobile sticky bar overlap via padding inside Step 1) -->
+      <footer class="hidden border-t border-[#f5d5e0] bg-[#fff9f7]/80 py-3 text-center text-xs text-[#8d6876] sm:block">
+        <span class="inline-flex items-center gap-1.5">
+          Dibuat manis buat foto bareng
+          <Heart class="h-3.5 w-3.5 fill-[#f05483] text-[#f05483]" />
+          SnapTogether Photobox
+        </span>
+      </footer>
     </div>
   </div>
 </template>
