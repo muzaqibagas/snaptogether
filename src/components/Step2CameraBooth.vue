@@ -88,13 +88,20 @@ const isFinalPose = computed(
   () => props.capturedPoses.length + (props.reviewingPose ? 1 : 0) >= props.selectedFrame.poseCount,
 );
 const isPortraitCamera = computed(() => localVideoAspect.value < 0.95);
+const showHardwareZoomControls = computed(
+  () =>
+    Boolean(
+      camera.zoomCapabilities.value &&
+        (camera.zoomCapabilities.value.min < 1 || camera.zoomLevel.value !== 1),
+    ),
+);
 const viewfinderContainerClass = computed(() => {
   if (props.mode === 'ldr') {
-    return 'grid aspect-[4/3] min-h-[220px] max-h-[46dvh] grid-cols-2 sm:min-h-[380px] sm:max-h-[500px]';
+    return 'grid aspect-[16/10] min-h-[180px] max-h-[44dvh] grid-cols-2 sm:aspect-[4/3] sm:min-h-[360px] sm:max-h-[500px]';
   }
   return isPortraitCamera.value
     ? 'mx-auto aspect-[3/4] min-h-[240px] max-h-[52dvh] sm:max-h-[520px]'
-    : 'aspect-[4/3] min-h-[210px] max-h-[48dvh] sm:max-h-[500px]';
+    : 'aspect-[4/3] min-h-[200px] max-h-[46dvh] sm:max-h-[500px]';
 });
 
 function handleLocalMetadata() {
@@ -521,9 +528,9 @@ defineExpose({
             <span>{{ fitMode === 'contain' ? 'Utuh' : 'Penuh' }}</span>
           </button>
 
-          <!-- Hardware Zoom Controls (shown when device camera supports zoom/ultrawide) -->
+          <!-- Hardware Zoom Controls (shown only when phone supports wide-angle <1x or zoom is adjusted) -->
           <div
-            v-if="camera.zoomCapabilities.value"
+            v-if="showHardwareZoomControls && camera.zoomCapabilities.value"
             class="flex items-center gap-0.5 rounded-xl border-2 border-[#f3d4de] bg-white px-1 py-0.5"
           >
             <button
@@ -592,11 +599,17 @@ defineExpose({
         <!-- Live Camera Viewfinder (kept mounted with v-show so iOS/Android camera never freezes on review) -->
         <div
           v-show="!camera.errorMessage.value && !reviewingPose"
-          class="relative w-full min-w-0 overflow-hidden rounded-2xl border-2 border-[#f3d1dc] bg-[#2a1820]"
-          :class="viewfinderContainerClass"
+          class="relative w-full min-w-0 overflow-hidden rounded-2xl border-2 border-[#f3d1dc]"
+          :class="[
+            viewfinderContainerClass,
+            fitMode === 'contain' ? 'bg-[#fff2f6]' : 'bg-[#2a1820]',
+          ]"
         >
           <!-- Local Camera -->
-          <div class="relative h-full w-full min-w-0 overflow-hidden bg-[#2b1921]">
+          <div
+            class="relative h-full w-full min-w-0 overflow-hidden"
+            :class="fitMode === 'contain' ? 'bg-[#ffeef4]' : 'bg-[#2b1921]'"
+          >
             <video
               ref="localVideoRef"
               autoplay
@@ -619,7 +632,7 @@ defineExpose({
             />
             <span
               v-if="mode === 'ldr'"
-              class="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full border border-white/60 bg-[#fff5f8]/90 px-2 py-0.5 text-[10px] font-extrabold text-[#c92a5d] shadow-xs backdrop-blur-xs sm:bottom-2.5 sm:left-2.5 sm:px-2.5 sm:py-1 sm:text-[11px]"
+              class="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-full border border-[#f5c2d3] bg-white/95 px-2 py-0.5 text-[10px] font-extrabold text-[#c92a5d] shadow-xs sm:bottom-2.5 sm:left-2.5 sm:px-2.5 sm:py-1 sm:text-[11px]"
             >
               Kamu ♡
             </span>
@@ -628,7 +641,12 @@ defineExpose({
           <!-- Partner Camera (LDR Mode Only) -->
           <div
             v-if="mode === 'ldr'"
-            class="relative h-full w-full min-w-0 overflow-hidden border-l-2 border-white/75 bg-[#222838]"
+            class="relative h-full w-full min-w-0 overflow-hidden border-l-2"
+            :class="
+              fitMode === 'contain'
+                ? 'border-[#f4ceda] bg-[#ecf5ff]'
+                : 'border-white/75 bg-[#222838]'
+            "
           >
             <video
               v-show="remoteStream"
@@ -659,7 +677,7 @@ defineExpose({
               </p>
             </div>
             <span
-              class="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full border border-white/60 bg-[#eef7ff]/90 px-2 py-0.5 text-[10px] font-extrabold text-[#1e609d] shadow-xs backdrop-blur-xs sm:bottom-2.5 sm:right-2.5 sm:px-2.5 sm:py-1 sm:text-[11px]"
+              class="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full border border-[#bddcf9] bg-white/95 px-2 py-0.5 text-[10px] font-extrabold text-[#1e609d] shadow-xs sm:bottom-2.5 sm:right-2.5 sm:px-2.5 sm:py-1 sm:text-[11px]"
             >
               Pasangan ♡
             </span>

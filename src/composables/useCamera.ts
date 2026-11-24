@@ -101,28 +101,40 @@ export function useCamera() {
     errorMessage.value = null;
     stopCamera();
 
-    // Match portrait orientation on mobile phones so Android/iOS won't force cropped 16:9 landscape video
-    const isPortraitViewport =
-      typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
-    const idealDims = isPortraitViewport
-      ? { width: { ideal: 720 }, height: { ideal: 960 } }
-      : { width: { ideal: 1280 }, height: { ideal: 960 } };
+    const isMobile =
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && window.innerWidth < 768);
 
-    const videoConstraints: MediaTrackConstraints = explicitDeviceId
-      ? {
-          deviceId: { exact: explicitDeviceId },
-          ...idealDims,
-        }
+    // On mobile, avoid forcing portrait width<height or 1080p dimensions so Android/iOS won't apply crop-and-scale or EIS zoom
+    const baseConstraints: MediaTrackConstraints = explicitDeviceId
+      ? { deviceId: { exact: explicitDeviceId } }
+      : { facingMode: { ideal: facingMode.value } };
+
+    const preferredConstraints: MediaTrackConstraints = isMobile
+      ? ({
+          ...baseConstraints,
+          resizeMode: 'none',
+        } as MediaTrackConstraints)
       : {
-          facingMode: { ideal: facingMode.value },
-          ...idealDims,
+          ...baseConstraints,
+          width: { ideal: 1280 },
+          height: { ideal: 960 },
         };
 
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints,
-        audio: false,
-      });
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: preferredConstraints,
+          audio: false,
+        });
+      } catch {
+        // Fallback if browser rejects resizeMode or ideal constraints
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: baseConstraints,
+          audio: false,
+        });
+      }
 
       stream.value = mediaStream;
       const track = mediaStream.getVideoTracks()[0];
